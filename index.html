@@ -3548,10 +3548,10 @@ function showOwnerModal(id = null) {
   const bldOptions = buildings.map(b => `<option value="${esc(b)}" ${o&&o.building===b?'selected':''}>${esc(b)}</option>`).join('');
   openModal(o ? '✏️ 编辑业主信息' : '＋ 添加业主信息',
     `<div style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;">
-      <div class="form-group"><label>业主姓名 *</label><input type="text" id="ownerName" value="${esc(o?o.name:'')}" placeholder="请输入业主姓名"></div>
-      <div class="form-group"><label>联系电话 *</label><input type="tel" id="ownerPhone" value="${esc(o?o.phone:'')}" placeholder="请输入联系电话"></div>
-      <div class="form-group"><label>身份证号</label><input type="text" id="ownerIdCard" value="${esc(o?o.idCard||'')}" placeholder="18位身份证号码"></div>
-      <div class="form-group"><label>邮箱</label><input type="email" id="ownerEmail" value="${esc(o?o.email||'')}" placeholder="业主邮箱地址"></div>
+      <div class="form-group"><label>业主姓名 *</label><input type="text" id="ownerName" value="${esc(o&&o.name||'')}" placeholder="请输入业主姓名"></div>
+      <div class="form-group"><label>联系电话 *</label><input type="tel" id="ownerPhone" value="${esc(o&&o.phone||'')}" placeholder="请输入联系电话"></div>
+      <div class="form-group"><label>身份证号</label><input type="text" id="ownerIdCard" value="${esc(o&&o.idCard||'')}" placeholder="18位身份证号码"></div>
+      <div class="form-group"><label>邮箱</label><input type="email" id="ownerEmail" value="${esc(o&&o.email||'')}" placeholder="业主邮箱地址"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
         <div class="form-group"><label>楼栋 *</label>
           <select id="ownerBuilding">
@@ -3573,9 +3573,9 @@ function showOwnerModal(id = null) {
             <option value="装修" ${o&&o.status==='装修'?'selected':''}>🔨 装修中</option>
           </select>
         </div>
-        <div class="form-group"><label>入住日期</label><input type="date" id="ownerMoveInDate" value="${o?o.moveInDate||'':'}'"></div>
+        <div class="form-group"><label>入住日期</label><input type="date" id="ownerMoveInDate" value="${o&&o.moveInDate||''}"></div>
       </div>
-      <div class="form-group"><label>备注</label><textarea id="ownerNote" rows="2" placeholder="备注信息...">${esc(o?o.note||'')}</textarea></div>
+      <div class="form-group"><label>备注</label><textarea id="ownerNote" rows="2" placeholder="备注信息...">${esc(o&&o.note||'')}</textarea></div>
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
      <button class="btn btn-primary" onclick="${o?'saveOwnerEdit('+o.id+')':'createOwner()'}">💾 保存</button>`);
@@ -4965,6 +4965,7 @@ function refreshAll() {
   renderAssetCategories();
   renderFixedAssetCats();
   renderFixedAssets();
+  renderOwners();
   updateDashboardStats();
   updateNotificationBadge('dashboard');
   saveAllData(); // 自动持久化到 localStorage
@@ -5087,9 +5088,9 @@ function exportBackup() {
     version: '2.6',
     exportedAt: new Date().toISOString(),
     orders, technicians, assets, inventory, inventoryTransactions,
-    addresses, zones, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-    knowledge,
-    nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId,
+    addresses, zones, owners, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
+    knowledge, fixedAssetInspections,
+    nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
     nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -5127,11 +5128,13 @@ function importBackup(input) {
       if (data.inventoryTransactions) inventoryTransactions = data.inventoryTransactions;
       if (data.addresses) addresses = data.addresses;
       if (data.zones) zones = data.zones;
+      if (data.owners) owners = data.owners;
       if (data.repairTypes) repairTypes = data.repairTypes;
       if (data.assetCategories) assetCategories = data.assetCategories;
       if (data.fixedAssets) fixedAssets = data.fixedAssets;
       if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
       if (data.knowledge) knowledge = data.knowledge;
+      if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
       if (data.users) { users = data.users; currentUser = users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
       // Restore counters
       if (data.nextOrderId) nextOrderId = data.nextOrderId;
@@ -5141,6 +5144,7 @@ function importBackup(input) {
       if (data.nextTrId) nextTrId = data.nextTrId;
       if (data.nextAddrId) nextAddrId = data.nextAddrId;
       if (data.nextZoneId) nextZoneId = data.nextZoneId;
+      if (data.nextOwnerId) nextOwnerId = data.nextOwnerId;
       if (data.nextRtId) nextRtId = data.nextRtId;
       if (data.nextAcId) nextAcId = data.nextAcId;
       if (data.nextFaId) nextFaId = data.nextFaId;
