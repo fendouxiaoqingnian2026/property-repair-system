@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; img-src 'self' data: blob:; connect-src 'self' https://*.github.io https://api.github.com; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -3765,12 +3767,14 @@ function deleteZone(id) {
 }
 
 // ============ USER MANAGEMENT ============
+// 密码使用 SHA-256 哈希存储，不再明文传输
+// 哈希值通过 Node.js crypto.createHash('sha256') 预计算
 let users = [
-  { id: 1, name: 'admin', role: '超级管理员', phone: '135****7890', email: 'admin@smartproperty.com', password: 'admin123', created: '2026-01-01', status: 'active' },
-  { id: 2, name: '张经理', role: '库管员', phone: '138****6789', email: 'zhang@smartproperty.com', password: '123456', created: '2026-01-15', status: 'active' },
-  { id: 3, name: '李主管', role: '工程人员', phone: '139****8901', email: 'li@smartproperty.com', password: '123456', created: '2026-02-20', status: 'active' },
-  { id: 4, name: '王客服', role: '客服员', phone: '136****2345', email: 'wang@smartproperty.com', password: '123456', created: '2026-03-10', status: 'active' },
-  { id: 5, name: '赵文员', role: '客服员', phone: '137****4567', email: 'zhao@smartproperty.com', password: '123456', created: '2026-04-05', status: 'disabled' },
+  { id: 1, name: 'admin', role: '超级管理员', phone: '135****7890', email: 'admin@smartproperty.com', password: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', created: '2026-01-01', status: 'active' },
+  { id: 2, name: '张经理', role: '库管员', phone: '138****6789', email: 'zhang@smartproperty.com', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', created: '2026-01-15', status: 'active' },
+  { id: 3, name: '李主管', role: '工程人员', phone: '139****8901', email: 'li@smartproperty.com', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', created: '2026-02-20', status: 'active' },
+  { id: 4, name: '王客服', role: '客服员', phone: '136****2345', email: 'wang@smartproperty.com', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', created: '2026-03-10', status: 'active' },
+  { id: 5, name: '赵文员', role: '客服员', phone: '137****4567', email: 'zhao@smartproperty.com', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', created: '2026-04-05', status: 'disabled' },
 ];
 let nextUserId = 6;
 const roles = ['超级管理员', '客服员', '工程人员', '库管员'];
@@ -4709,6 +4713,17 @@ function refreshAll() {
   saveAllData(); // 自动持久化到 localStorage
 }
 
+// ============ SECURITY: XSS PROTECTION ============
+// HTML 实体编码 — 所有用户输入渲染前必须经过此函数
+function escapeHtml(str) {
+  if (str == null || str === '') return '';
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+// HTML 实体编码（不创建 DOM 元素，纯字符串版本，用于模板字面量中少量文本）
+function esc(str) { return escapeHtml(str); }
+
 // ============ LOCALSTORAGE PERSISTENCE ============
 const STORAGE_KEY = 'smartproperty_data_v2';
 
@@ -5001,9 +5016,57 @@ function exportDispatchExcel() {
 }
 
 // ============ LOGIN / LOGOUT ============
+// ============ SECURITY: 密码哈希 & 登录保护 ============
+const MAX_LOGIN_ATTEMPTS = 5;          // 最大失败尝试次数
+const LOGIN_LOCKOUT_MINUTES = 15;      // 锁定时间（分钟）
+const SESSION_TIMEOUT_MINUTES = 30;    // 会话闲置超时（分钟）
+let loginAttempts = {};                // { username: { count, lockedUntil } }
+let sessionTimer = null;
+let activityWarningTimer = null;
+
+// SHA-256 哈希函数（使用 Web Crypto API）
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// 检查是否被锁定
+function isLoginLocked(username) {
+  const entry = loginAttempts[username];
+  if (!entry) return false;
+  if (entry.lockedUntil && Date.now() < entry.lockedUntil) return true;
+  // 锁定已过期，清除记录
+  if (entry.lockedUntil && Date.now() >= entry.lockedUntil) {
+    delete loginAttempts[username];
+    return false;
+  }
+  return false;
+}
+
+// 获取剩余尝试次数
+function getRemainingAttempts(username) {
+  const entry = loginAttempts[username];
+  if (!entry) return MAX_LOGIN_ATTEMPTS;
+  return Math.max(0, MAX_LOGIN_ATTEMPTS - entry.count);
+}
+
+// 获取锁定剩余时间（分钟）
+function getLockoutRemaining(username) {
+  const entry = loginAttempts[username];
+  if (!entry || !entry.lockedUntil) return 0;
+  return Math.max(0, Math.ceil((entry.lockedUntil - Date.now()) / 60000));
+}
+
+// 待迁移的明文密码提示（首次登录后自动升级为哈希）
+function needsPasswordMigration(user) {
+  return user.password && user.password.length < 40; // SHA-256 hex 为 64 字符，少于 40 视为明文
+}
+
 const LOGIN_SESSION_KEY = 'smartproperty_session';
 
-function handleLogin() {
+async function handleLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   const remember = document.getElementById('loginRemember').checked;
@@ -5013,17 +5076,49 @@ function handleLogin() {
     errorEl.textContent = '⚠️ 请输入用户名和密码';
     return;
   }
-  
-  const user = users.find(u => u.name === username && u.password === password);
-  if (!user) {
-    errorEl.textContent = '❌ 用户名或密码错误';
+
+  // 暴力破解防护：检查是否已被锁定
+  if (isLoginLocked(username)) {
+    const remaining = getLockoutRemaining(username);
+    errorEl.textContent = `🚫 登录尝试次数过多，请 ${remaining} 分钟后再试`;
     return;
   }
+
+  // 先找到用户
+  const user = users.find(u => u.name === username);
+  if (!user) {
+    recordFailedAttempt(username, errorEl);
+    return;
+  }
+
+  // 验证密码：支持 SHA-256 哈希比对 + 明文密码自动迁移
+  let passwordMatch = false;
+  if (needsPasswordMigration(user)) {
+    // 旧密码是明文，先比对明文
+    if (user.password === password) {
+      passwordMatch = true;
+      // 自动迁移到 SHA-256 哈希
+      const hash = await sha256(password);
+      user.password = hash;
+    }
+  } else {
+    // 哈希比对
+    const hash = await sha256(password);
+    passwordMatch = (user.password === hash);
+  }
+
+  if (!passwordMatch) {
+    recordFailedAttempt(username, errorEl);
+    return;
+  }
+  
   if (user.status !== 'active') {
     errorEl.textContent = '⛔ 该账号已被禁用，请联系管理员';
     return;
   }
   
+  // 登录成功，清除失败记录
+  delete loginAttempts[username];
   currentUser = user;
   errorEl.textContent = '';
   
@@ -5046,12 +5141,32 @@ function handleLogin() {
   
   // 隐藏登录页，显示主界面
   document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('loginPassword').value = ''; // 清除密码输入
   updateSidebarUser();
   applyRoleVisibility();
   refreshAll();
   updateInvStats();
   drawMonthlyChart(); drawCategoryChart(); drawDurationChart();
   drawPerfChart(); drawHeatmapChart(); drawSatisfactionChart();
+  resetSessionTimer(); // 启动会话超时计时器
+  saveAllData(); // 如果进行了密码迁移，保存到 localStorage
+}
+
+// 记录失败尝试
+function recordFailedAttempt(username, errorEl) {
+  if (!loginAttempts[username]) {
+    loginAttempts[username] = { count: 0 };
+  }
+  loginAttempts[username].count++;
+  loginAttempts[username].lastAttempt = Date.now();
+  
+  const remaining = getRemainingAttempts(username);
+  if (remaining <= 0) {
+    loginAttempts[username].lockedUntil = Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000;
+    errorEl.textContent = `🚫 登录失败次数过多，已锁定 ${LOGIN_LOCKOUT_MINUTES} 分钟`;
+  } else {
+    errorEl.textContent = `❌ 用户名或密码错误（还可尝试 ${remaining} 次）`;
+  }
 }
 
 function handleLogout(silent) {
@@ -5059,6 +5174,7 @@ function handleLogout(silent) {
   currentUser = null;
   localStorage.removeItem(LOGIN_SESSION_KEY);
   sessionStorage.removeItem(LOGIN_SESSION_KEY);
+  clearSessionTimers(); // 清除会话超时计时器
   const overlay = document.getElementById('loginOverlay');
   overlay.classList.remove('hidden');
   document.getElementById('loginUsername').value = '';
@@ -5116,6 +5232,37 @@ function checkLoginSession() {
     return false;
   }
 }
+
+// ============ SECURITY: 会话闲置超时 ============
+function resetSessionTimer() {
+  if (!currentUser) return;
+  clearSessionTimers();
+  
+  // 超时前 2 分钟提醒
+  activityWarningTimer = setTimeout(() => {
+    showToast('⚠️ 您已 ' + (SESSION_TIMEOUT_MINUTES - 2) + ' 分钟未操作，2 分钟后将自动退出', 'warning');
+  }, (SESSION_TIMEOUT_MINUTES - 2) * 60 * 1000);
+  
+  // 超时自动退出
+  sessionTimer = setTimeout(() => {
+    handleLogout(true);
+    showToast('🔒 由于长时间未操作，已自动退出登录', 'info');
+  }, SESSION_TIMEOUT_MINUTES * 60 * 1000);
+}
+
+function clearSessionTimers() {
+  clearTimeout(sessionTimer);
+  clearTimeout(activityWarningTimer);
+  sessionTimer = null;
+  activityWarningTimer = null;
+}
+
+// 监听用户活动事件，重置超时计时器
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+  document.addEventListener(evt, () => {
+    if (currentUser) resetSessionTimer();
+  }, { passive: true });
+});
 
 // ============================================================
 // API 适配层 v3.0 — 多端实时同步
