@@ -865,6 +865,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <select class="filter-select" id="faFilterStatus" onchange="renderFixedAssets()" style="margin-left:6px;"><option value="all">全部状态</option><option value="normal">正常</option><option value="damaged">待维修</option><option value="scrapped">已报废</option></select>
             <input type="text" class="filter-input" placeholder="🔍 搜索资产..." id="faSearch" oninput="renderFixedAssets()">
             <button class="btn btn-primary btn-sm" onclick="showFixedAssetModal()">+ 添加资产</button>
+            <button class="btn btn-outline btn-sm" onclick="batchFixedAssetQRPrint()" style="border-color:var(--info);color:var(--info);">📱 批量二维码</button>
             <button class="btn btn-secondary btn-sm" onclick="printTableOnly('printArea-fixedassets','📦 固定资产清单')">🖨️ 打印</button>
             <button class="btn btn-success btn-sm" onclick="exportFixedAssetsExcel()">📥 导出Excel</button>
           </div>
@@ -1216,6 +1217,9 @@ let fixedAssets = [
   { code: 'HSJ-GD-006', name: '草坪修剪机', cat: '园林设备', spec: '本田 GXV160', location: '工具间', responsible: '吴师傅', date: '2021-05', status: 'scrapped', note: '发动机报废' },
 ];
 let nextFaId = 7;
+
+// 固定资产巡检记录（手机扫码提交）
+let fixedAssetInspections = [];
 
 let fixedAssetCategories = [
   { id: 'hsj-gl-1', name: '办公家具', createdAt: '2026-06-08' },
@@ -3013,39 +3017,32 @@ function showInspectionCalendar() {
     `<button class="btn btn-secondary" onclick="closeModal()">关闭</button>`);
 }
 
-// ============ 二维码生成 ============
+// ============ 二维码生成（手机扫码 → 跳转巡检上传页面） ============
+// 生成扫码跳转的完整 URL
+function assetInspectUrl(code) {
+  return location.origin + location.pathname + '#/m/asset/' + encodeURIComponent(code);
+}
+
 function showQRCode(code) {
   const a = assets.find(a => a.code === code);
-  if (!a) return;
-  const qrData = [
-    `设备编号:${a.code}`,
-    `设备名称:${a.name}`,
-    `类别:${a.cat}`,
-    `安装位置:${a.loc}`,
-    `品牌型号:${a.model}`,
-    `安装日期:${a.date}`,
-    `维保周期:${a.cycle}`,
-    `上次巡检:${a.lastInspection||'—'}`,
-    `下次巡检:${a.nextInspection||'—'}`,
-    `状态:${a.status}`
-  ].join('|');
-  const encodedData = encodeURIComponent(qrData);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodedData}&margin=8`;
+  if (!a) return showFixedAssetQRCode(code);
+  const qrLink = assetInspectUrl(code);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
   openModal(`📱 设备二维码 — ${a.name}`,
     `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
       <div style="flex-shrink:0;text-align:center;">
         <div style="border:2px solid var(--gray-200);border-radius:12px;padding:12px;background:#fff;display:inline-block;">
           <img src="${qrUrl}" alt="QR" style="display:block;width:220px;height:220px;" onerror="this.outerHTML='<div style=width:220px;height:220px;display:flex;align-items:center;justify-content:center;background:var(--gray-100);border-radius:8px;color:var(--gray-500);>⚠️ 二维码加载失败<br>请检查网络连接</div>'">
         </div>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">扫码查看设备信息</div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 微信扫码 → 巡检上传</div>
       </div>
       <div style="flex:1;min-width:200px;">
         <h4 style="margin:0 0 12px 0;color:var(--primary);">${a.code}</h4>
         <table style="width:100%;font-size:13px;border-collapse:collapse;">
-          <tr><td style="padding:4px 0;color:var(--gray-500);width:70px;">设备名称</td><td>${a.name}</td></tr>
-          <tr><td style="padding:4px 0;color:var(--gray-500);">类别</td><td>${a.cat}</td></tr>
-          <tr><td style="padding:4px 0;color:var(--gray-500);">位置</td><td>${a.loc}</td></tr>
-          <tr><td style="padding:4px 0;color:var(--gray-500);">品牌型号</td><td>${a.model}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);width:70px;">设备名称</td><td>${esc(a.name)}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">类别</td><td>${esc(a.cat)}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">位置</td><td>${esc(a.loc)}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">品牌型号</td><td>${esc(a.model)}</td></tr>
           <tr><td style="padding:4px 0;color:var(--gray-500);">安装日期</td><td>${a.date}</td></tr>
           <tr><td style="padding:4px 0;color:var(--gray-500);">维保周期</td><td>${a.cycle}（${a.cycleDays||'—'}天）</td></tr>
           <tr><td style="padding:4px 0;color:var(--gray-500);">上次巡检</td><td>${a.lastInspection||'—'}</td></tr>
@@ -3053,8 +3050,8 @@ function showQRCode(code) {
         </table>
       </div>
     </div>
-    <div style="margin-top:16px;padding:12px;background:var(--gray-50);border-radius:8px;font-size:11px;color:var(--gray-500);">
-      💡 提示：维护人员使用手机扫描二维码即可快速查看设备信息。点击下方"打印标签"可打印带二维码的设备标签贴纸。
+    <div style="margin-top:16px;padding:12px;background:#e8f5e9;border-radius:8px;font-size:12px;color:#2e7d32;">
+      📱 手机扫码即可打开巡检页面，支持<b>现场拍照上传</b> + <b>填写巡检结果</b>，记录自动保存到系统。
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal()">关闭</button>
      <button class="btn btn-success" onclick="printQRLabel('${code}')">🖨️ 打印标签</button>`);
@@ -3063,14 +3060,8 @@ function showQRCode(code) {
 function printQRLabel(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return;
-  const qrData = [
-    `设备编号:${a.code}`,`设备名称:${a.name}`,`类别:${a.cat}`,
-    `安装位置:${a.loc}`,`品牌型号:${a.model}`,`安装日期:${a.date}`,
-    `维保周期:${a.cycle}`,`上次巡检:${a.lastInspection||'—'}`,
-    `下次巡检:${a.nextInspection||'—'}`,`状态:${a.status}`
-  ].join('|');
-  const encodedData = encodeURIComponent(qrData);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodedData}&margin=8`;
+  const qrLink = assetInspectUrl(code);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
   const w = window.open('','_blank','width=600,height=700');
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>设备标签 — ${a.code}</title>
@@ -3083,6 +3074,7 @@ function printQRLabel(code) {
       .label img { display:block; margin:0 auto; width:200px; height:200px; }
       .label .info { font-size:10px; color:#888; margin-top:8px; text-align:left; }
       .label .info span { display:block; line-height:1.6; }
+      .label .scan-hint { font-size:9px; color:#4caf50; margin-top:6px; }
       @media print { .no-print { display:none; } }
     </style></head><body>
     <div class="label">
@@ -3093,6 +3085,7 @@ function printQRLabel(code) {
         <span>📍 ${a.loc}</span><span>📦 ${a.model}</span>
         <span>🔄 维保：${a.cycle}</span><span>📅 下次巡检：${a.nextInspection||'—'}</span>
       </div>
+      <div class="scan-hint">📱 微信扫码 → 拍照上传巡检</div>
     </div>
     <p class="no-print" style="margin-top:20px;font-size:12px;color:#999;">按 Ctrl+P 打印标签</p>
     </body></html>`);
@@ -3104,8 +3097,8 @@ function batchQRPrint() {
   if (items.length === 0) { showToast('没有可生成二维码的设备', 'warning'); return; }
   const w = window.open('','_blank','width=800,height=800');
   const qrUrl = (a) => {
-    const d = [`设备编号:${a.code}`,`设备名称:${a.name}`,`类别:${a.cat}`,`安装位置:${a.loc}`,`品牌型号:${a.model}`,`安装日期:${a.date}`,`维保周期:${a.cycle}`,`下次巡检:${a.nextInspection||'—'}`].join('|');
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(d)}&margin=4`;
+    const link = assetInspectUrl(a.code);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}&margin=4`;
   };
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量设备二维码</title>
@@ -3117,14 +3110,83 @@ function batchQRPrint() {
       .card img { width:120px; height:120px; }
       .card .name { font-size:11px; font-weight:700; margin:4px 0; }
       .card .code { font-size:9px; color:#888; }
+      .card .hint { font-size:8px; color:#4caf50; margin-top:3px; }
       @media print { .no-print { display:none; } }
     </style></head><body>
-    <h2 style="text-align:center;">📱 设备资产二维码标签 (${items.length}台)</h2>
+    <h2 style="text-align:center;">📱 设备资产巡检二维码 (${items.length}台)</h2>
+    <p style="text-align:center;font-size:12px;color:#666;">手机扫码即可打开巡检页面，拍照上传记录</p>
     <div class="grid">
       ${items.map(a=>`<div class="card">
         <img src="${qrUrl(a)}" alt="QR" onerror="this.style.display='none'">
         <div class="name">${a.name}</div><div class="code">${a.code}</div>
-        <div style="font-size:9px;color:#aaa;">📅 下次：${a.nextInspection||'—'}</div>
+        <div class="hint">📱 扫码巡检</div>
+      </div>`).join('')}
+    </div>
+    <p class="no-print" style="text-align:center;margin-top:20px;font-size:12px;color:#999;">按 Ctrl+P 打印全部标签</p>
+    </body></html>`);
+  w.document.close();
+}
+
+// ============ 固定资产（办公家具等）二维码 ============
+function showFixedAssetQRCode(code) {
+  const a = fixedAssets.find(a => a.code === code);
+  if (!a) return;
+  const qrLink = assetInspectUrl(code);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
+  openModal(`📱 固定资产二维码 — ${esc(a.name)}`,
+    `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
+      <div style="flex-shrink:0;text-align:center;">
+        <div style="border:2px solid var(--gray-200);border-radius:12px;padding:12px;background:#fff;display:inline-block;">
+          <img src="${qrUrl}" alt="QR" style="display:block;width:220px;height:220px;" onerror="this.outerHTML='<div style=width:220px;height:220px;display:flex;align-items:center;justify-content:center;background:var(--gray-100);border-radius:8px;color:var(--gray-500);>⚠️ 二维码加载失败</div>'">
+        </div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 微信扫码 → 巡检上传</div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <h4 style="margin:0 0 12px 0;color:var(--primary);">${esc(a.code)}</h4>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <tr><td style="padding:4px 0;color:var(--gray-500);width:70px;">名称</td><td>${esc(a.name)}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">类别</td><td>${esc(a.cat)}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">位置</td><td>${esc(a.location||'')}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">规格</td><td>${esc(a.spec||'')}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">责任人</td><td>${esc(a.responsible||'')}</td></tr>
+          <tr><td style="padding:4px 0;color:var(--gray-500);">登记日期</td><td>${a.date||''}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:#e8f5e9;border-radius:8px;font-size:12px;color:#2e7d32;">
+      📱 手机扫码即可打开巡检页面，支持<b>现场拍照上传</b> + <b>填写巡检结果</b>，记录自动保存到系统。
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">关闭</button>`);
+}
+
+function batchFixedAssetQRPrint() {
+  const items = fixedAssets.filter(a => a.status !== 'scrapped');
+  if (items.length === 0) { showToast('没有可生成二维码的固定资产', 'warning'); return; }
+  const w = window.open('','_blank','width=800,height=800');
+  const qrUrl = (a) => {
+    const link = assetInspectUrl(a.code);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}&margin=4`;
+  };
+  w.document.write(`
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量固定资产二维码</title>
+    <style>
+      @page { size: A4; margin: 10mm; }
+      body { font-family: 'Microsoft YaHei',sans-serif; }
+      .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+      .card { border:1px solid #eee; border-radius:8px; padding:10px; text-align:center; break-inside:avoid; }
+      .card img { width:120px; height:120px; }
+      .card .name { font-size:11px; font-weight:700; margin:4px 0; }
+      .card .code { font-size:9px; color:#888; }
+      .card .hint { font-size:8px; color:#4caf50; margin-top:3px; }
+      @media print { .no-print { display:none; } }
+    </style></head><body>
+    <h2 style="text-align:center;">📱 固定资产巡检二维码 (${items.length}件)</h2>
+    <p style="text-align:center;font-size:12px;color:#666;">手机扫码即可打开巡检页面，拍照上传记录</p>
+    <div class="grid">
+      ${items.map(a=>`<div class="card">
+        <img src="${qrUrl(a)}" alt="QR" onerror="this.style.display='none'">
+        <div class="name">${a.name}</div><div class="code">${a.code}</div>
+        <div class="hint">📱 扫码巡检</div>
       </div>`).join('')}
     </div>
     <p class="no-print" style="text-align:center;margin-top:20px;font-size:12px;color:#999;">按 Ctrl+P 打印全部标签</p>
@@ -3659,6 +3721,7 @@ function renderFixedAssets() {
     <td>${a.spec||'-'}</td><td>${a.location||'-'}</td><td>${a.responsible||'-'}</td><td>${a.date||'-'}</td>
     <td>${statusMap[a.status]}</td>
     <td><button class="btn btn-primary btn-xs" onclick="editFixedAsset('${a.code}')">编辑</button>
+        <button class="btn btn-info btn-xs" style="margin-left:2px;" onclick="showFixedAssetQRCode('${a.code}')" title="二维码">📱</button>
         <button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteFixedAsset('${a.code}')">删除</button></td></tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:32px;">暂无固定资产数据</td></tr>';
   updateFixedAssetStats();
 }
@@ -4737,7 +4800,7 @@ function saveAllData() {
     const data = {
       orders, technicians, assets, inventory, inventoryTransactions,
       addresses, zones, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-      knowledge,
+      knowledge, fixedAssetInspections,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
       savedAt: new Date().toISOString(),
@@ -4792,6 +4855,7 @@ function loadAllData() {
     if (data.assetCategories) assetCategories = data.assetCategories;
     if (data.fixedAssets) fixedAssets = data.fixedAssets;
     if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
+    if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
     if (data.knowledge) knowledge = data.knowledge;
     if (data.users) { users = data.users; currentUser = users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
     // 恢复计数器
@@ -5528,6 +5592,9 @@ let _autoSaveTimer = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  // ★ Hash 路由检测 — 手机扫码打开的巡检页面不需要登录
+  if (handleMobileHashRoute()) return;
+
   // ★ Step 0 — 同步快速登录检查（不等服务器数据，无闪现）
   // 登录覆盖层默认 hidden，只有确定无有效会话时才显示
   const quickLogin = checkLoginSession();
@@ -5580,6 +5647,277 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentUser) saveAllData();
   }, 10000);
 });
+
+// ============ 📱 手机扫码巡检上传页面 ============
+// 路由前缀: #/m/asset/{code}
+function handleMobileHashRoute() {
+  const hash = location.hash;
+  const match = hash.match(/^#\/m\/asset\/(.+)$/);
+  if (!match) return false;
+  
+  // 先从 localStorage 加载数据（异步 init 之前）
+  loadAllData();
+  const code = decodeURIComponent(match[1]);
+  renderMobileInspectPage(code);
+  return true;
+}
+
+// 监听 hash 变化（允许在应用中点击链接导航到巡检页）
+window.addEventListener('hashchange', () => {
+  handleMobileHashRoute();
+});
+
+function renderMobileInspectPage(code) {
+  const a = assets.find(a => a.code === code) || fixedAssets.find(a => a.code === code);
+  // 隐藏登录遮罩和主界面
+  document.getElementById('loginOverlay').classList.add('hidden');
+  const mainEl = document.querySelector('.app-container') || document.querySelector('.main-content') || document.body;
+  
+  // 最近的巡检记录
+  const history = fixedAssetInspections.filter(r => r.assetCode === code).sort((a,b) => b.time - a.time);
+  const lastInspect = history[0];
+  
+  const statusColor = { normal: '#4caf50', damaged: '#ff9800', scrapped: '#f44336' };
+  
+  mainEl.innerHTML = `
+  <style>
+    .m-inspect-page { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background:#f5f7fa; min-height:100vh; padding-bottom:40px; }
+    .m-inspect-header { background:linear-gradient(135deg,#1a73e8,#0d47a1); color:#fff; padding:24px 20px 20px; position:relative; }
+    .m-inspect-header h2 { margin:0; font-size:18px; font-weight:600; }
+    .m-inspect-header .code { font-size:13px; opacity:0.85; margin-top:4px; }
+    .m-inspect-card { background:#fff; margin:12px 16px; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+    .m-inspect-card h3 { margin:0 0 12px 0; font-size:15px; color:#333; display:flex; align-items:center; gap:6px; }
+    .m-info-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
+    .m-info-row:last-child { border-bottom:none; }
+    .m-info-label { color:#888; flex-shrink:0; }
+    .m-info-value { color:#333; text-align:right; font-weight:500; }
+    .m-status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
+    .m-photo-area { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
+    .m-photo-box { aspect-ratio:1; border:2px dashed #d0d5dd; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fafafa; transition:border-color 0.2s; position:relative; overflow:hidden; }
+    .m-photo-box:hover { border-color:#1a73e8; }
+    .m-photo-box img { width:100%; height:100%; object-fit:cover; }
+    .m-photo-box .remove-btn { position:absolute; top:2px; right:2px; width:22px; height:22px; background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:50%; font-size:14px; line-height:22px; text-align:center; cursor:pointer; }
+    .m-result-row { display:flex; gap:8px; margin-top:8px; }
+    .m-result-btn { flex:1; padding:10px 8px; border:2px solid #e0e0e0; border-radius:8px; background:#fff; font-size:14px; cursor:pointer; text-align:center; transition:all 0.2s; }
+    .m-result-btn.active { border-color:#4caf50; background:#e8f5e9; color:#2e7d32; font-weight:600; }
+    .m-result-btn.warn.active { border-color:#ff9800; background:#fff3e0; color:#e65100; }
+    .m-result-btn.danger.active { border-color:#f44336; background:#ffebee; color:#c62828; }
+    .m-input { width:100%; padding:12px; border:1px solid #d0d5dd; border-radius:8px; font-size:14px; box-sizing:border-box; resize:vertical; min-height:80px; font-family:inherit; }
+    .m-input:focus { outline:none; border-color:#1a73e8; box-shadow:0 0 0 3px rgba(26,115,232,0.1); }
+    .m-submit-btn { display:block; width:calc(100% - 32px); margin:20px 16px; padding:14px; background:linear-gradient(135deg,#1a73e8,#0d47a1); color:#fff; border:none; border-radius:10px; font-size:16px; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
+    .m-submit-btn:active { opacity:0.85; }
+    .m-submit-btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .m-history-item { padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+    .m-history-item:last-child { border-bottom:none; }
+    .m-history-time { color:#888; font-size:12px; }
+    .m-history-photos { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
+    .m-history-photos img { width:48px; height:48px; border-radius:4px; object-fit:cover; cursor:pointer; border:1px solid #eee; }
+    .m-no-login-bar { background:#fff3e0; padding:8px 16px; font-size:12px; color:#e65100; text-align:center; border-bottom:1px solid #ffe0b2; }
+    .m-toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 20px; border-radius:20px; font-size:14px; z-index:9999; animation:mFadeIn 0.3s; }
+    @keyframes mFadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+  </style>
+  <div class="m-inspect-page">
+    <div class="m-no-login-bar">⚠️ 无需登录 — 巡检上传模式</div>
+    <div class="m-inspect-header">
+      <h2>${a ? esc(a.name) : '未知设备'}</h2>
+      <div class="code">${a ? esc(a.code) : code}</div>
+    </div>
+    ${a ? `
+    <div class="m-inspect-card">
+      <h3>📋 设备信息</h3>
+      <div class="m-info-row"><span class="m-info-label">类别</span><span class="m-info-value">${esc(a.cat)}</span></div>
+      <div class="m-info-row"><span class="m-info-label">位置</span><span class="m-info-value">${esc(a.loc)}</span></div>
+      <div class="m-info-row"><span class="m-info-label">型号</span><span class="m-info-value">${esc(a.model)}</span></div>
+      <div class="m-info-row"><span class="m-info-label">安装日期</span><span class="m-info-value">${a.date}</span></div>
+      <div class="m-info-row"><span class="m-info-label">维保周期</span><span class="m-info-value">${a.cycle}</span></div>
+      <div class="m-info-row"><span class="m-info-label">上次巡检</span><span class="m-info-value">${a.lastInspection||'—'}</span></div>
+      <div class="m-info-row"><span class="m-info-label">下次巡检</span><span class="m-info-value" id="mNextInspect">${a.nextInspection||'—'}</span></div>
+      <div class="m-info-row"><span class="m-info-label">状态</span><span class="m-info-value"><span class="m-status-dot" style="background:${statusColor[a.status]||'#999'}"></span>${a.status||'未知'}</span></div>
+    </div>
+    ` : '<div class="m-inspect-card"><h3>⚠️ 设备未找到</h3><p style="color:#888;font-size:14px;">设备编号 ${esc(code)} 不存在于系统中</p></div>'}
+    
+    ${a ? `
+    <div class="m-inspect-card">
+      <h3>🔍 巡检结果</h3>
+      <div class="m-result-row" id="mResultBtns">
+        <div class="m-result-btn active" onclick="mSelectResult('normal')" data-v="normal">✅ 正常</div>
+        <div class="m-result-btn warn" onclick="mSelectResult('damaged')" data-v="damaged">⚠️ 需维修</div>
+        <div class="m-result-btn danger" onclick="mSelectResult('scrapped')" data-v="scrapped">❌ 需报废</div>
+      </div>
+    </div>
+    
+    <div class="m-inspect-card">
+      <h3>📸 现场拍照（最多6张）</h3>
+      <div class="m-photo-area" id="mPhotoArea">
+        <div class="m-photo-box" onclick="mAddPhoto()">
+          <span style="font-size:28px;color:#bbb;">+</span>
+        </div>
+      </div>
+      <input type="file" id="mFileInput" accept="image/*" capture="environment" multiple style="display:none;" onchange="mHandleFiles(this)">
+    </div>
+    
+    <div class="m-inspect-card">
+      <h3>📝 巡检备注</h3>
+      <textarea class="m-input" id="mNotes" placeholder="填写巡检情况、异常描述、处理建议..."></textarea>
+    </div>
+    
+    <div class="m-inspect-card">
+      <h3>👤 巡检人</h3>
+      <input class="m-input" id="mInspector" placeholder="请输入巡检人姓名" style="min-height:auto;">
+    </div>
+    
+    <button class="m-submit-btn" onclick="mSubmitInspection('${code}')">📤 提交巡检记录</button>
+    ` : ''}
+    
+    ${history.length > 0 ? `
+    <div class="m-inspect-card">
+      <h3>📜 最近巡检记录（${history.length}条）</h3>
+      ${history.slice(0,10).map(r => `
+        <div class="m-history-item">
+          <div class="m-history-time">${formatTime(new Date(r.time))} · ${esc(r.inspector||'未知')} · ${r.result==='normal'?'✅正常':r.result==='damaged'?'⚠️需维修':'❌需报废'}</div>
+          ${r.notes ? `<div style="color:#555;margin-top:4px;">${esc(r.notes)}</div>` : ''}
+          ${r.photos && r.photos.length > 0 ? `
+            <div class="m-history-photos">${r.photos.map(p => `<img src="${p}" onclick="mViewPhoto('${p}')" alt="巡检照片">`).join('')}</div>
+          ` : ''}
+        </div>
+      `).join('')}
+    </div>
+    ` : ''}
+    
+    <div style="text-align:center;padding:20px;color:#aaa;font-size:12px;">
+      🔗 物业报修系统 · 设备巡检<br>
+      <a href="${location.origin + location.pathname}" style="color:#1a73e8;">返回系统首页</a>
+    </div>
+  </div>
+  <div id="mToast" style="display:none;" class="m-toast"></div>
+  <div id="mPhotoPreview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:10000;cursor:pointer;" onclick="this.style.display='none'">
+    <img id="mPhotoPreviewImg" style="max-width:90vw;max-height:90vh;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+  </div>
+  `;
+  
+  // 初始化照片数组
+  window._mPhotos = [];
+  window._mResult = 'normal';
+}
+
+// ============ 手机端交互函数 ============
+function mSelectResult(result) {
+  window._mResult = result;
+  document.querySelectorAll('#mResultBtns .m-result-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#mResultBtns .m-result-btn[data-v="${result}"]`).classList.add('active');
+}
+
+function mAddPhoto() {
+  if (window._mPhotos.length >= 6) { mToast('最多上传6张照片'); return; }
+  document.getElementById('mFileInput').click();
+}
+
+function mHandleFiles(input) {
+  const files = Array.from(input.files);
+  const remaining = 6 - window._mPhotos.length;
+  const toProcess = files.slice(0, remaining);
+  if (files.length > remaining) mToast(`最多6张，仅保留前${remaining}张`);
+  
+  let loaded = 0;
+  toProcess.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      window._mPhotos.push(e.target.result);
+      loaded++;
+      if (loaded === toProcess.length) mRenderPhotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function mRemovePhoto(index) {
+  window._mPhotos.splice(index, 1);
+  mRenderPhotos();
+}
+
+function mRenderPhotos() {
+  const area = document.getElementById('mPhotoArea');
+  if (!area) return;
+  area.innerHTML = window._mPhotos.map((p,i) => `
+    <div class="m-photo-box">
+      <img src="${p}" alt="照片${i+1}">
+      <button class="remove-btn" onclick="mRemovePhoto(${i})">×</button>
+    </div>
+  `).join('') + (window._mPhotos.length < 6 ? `
+    <div class="m-photo-box" onclick="mAddPhoto()">
+      <span style="font-size:28px;color:#bbb;">+</span>
+    </div>
+  ` : '');
+}
+
+function mViewPhoto(src) {
+  const preview = document.getElementById('mPhotoPreview');
+  const img = document.getElementById('mPhotoPreviewImg');
+  img.src = src;
+  preview.style.display = 'block';
+}
+
+function mToast(msg) {
+  const el = document.getElementById('mToast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.animation = 'none';
+  el.offsetHeight; // reflow
+  el.style.animation = 'mFadeIn 0.3s';
+  clearTimeout(window._mToastTimer);
+  window._mToastTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
+
+function mSubmitInspection(code) {
+  const inspector = document.getElementById('mInspector')?.value.trim();
+  if (!inspector) { mToast('请填写巡检人姓名'); return; }
+  
+  const record = {
+    assetCode: code,
+    time: Date.now(),
+    result: window._mResult,
+    notes: document.getElementById('mNotes')?.value.trim() || '',
+    photos: [...window._mPhotos],
+    inspector: inspector
+  };
+  
+  fixedAssetInspections.push(record);
+  
+  // 更新设备的上次/下次巡检日期
+  const a = assets.find(a => a.code === code);
+  if (a) {
+    const now = new Date();
+    const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    a.lastInspection = dateStr;
+    a.status = window._mResult; // 同步更新设备状态
+    
+    // 计算下次巡检日期
+    if (a.cycleDays) {
+      const next = new Date(now.getTime() + a.cycleDays * 24 * 60 * 60 * 1000);
+      a.nextInspection = next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0') + '-' + String(next.getDate()).padStart(2,'0');
+    }
+  }
+  
+  saveAllData();
+  
+  // 清空表单
+  window._mPhotos = [];
+  window._mResult = 'normal';
+  document.getElementById('mNotes').value = '';
+  document.getElementById('mInspector').value = '';
+  mRenderPhotos();
+  document.querySelectorAll('#mResultBtns .m-result-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#mResultBtns .m-result-btn[data-v="normal"]').classList.add('active');
+  
+  // 更新巡检历史显示
+  renderMobileInspectPage(code);
+  
+  mToast('✅ 巡检记录已提交！');
+}
+
+// ============ 移动端巡检页面 END ============
 </script>
 </body>
 </html>
