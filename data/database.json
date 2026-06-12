@@ -1,0 +1,89 @@
+{
+  "version": "3.1",
+  "savedAt": "2026-06-09T03:02:14.041Z",
+  "users": [
+    {
+      "id": 1,
+      "name": "admin",
+      "password": "admin123",
+      "role": "超级管理员",
+      "status": "active",
+      "email": "admin@smartproperty.com",
+      "avatar": "👑"
+    },
+    {
+      "id": 2,
+      "name": "张经理",
+      "password": "123456",
+      "role": "库管员",
+      "status": "active",
+      "email": "zhang@smartproperty.com",
+      "avatar": "📦"
+    },
+    {
+      "id": 3,
+      "name": "李主管",
+      "password": "123456",
+      "role": "工程人员",
+      "status": "active",
+      "email": "li@smartproperty.com",
+      "avatar": "🔧"
+    }
+  ],
+  "nextUserId": 6,
+  "orders": [],
+  "nextOrderId": 13,
+  "repairTypes": [
+    {
+      "id": "hsj-lx-1",
+      "name": "水管漏水",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-2",
+      "name": "电路故障",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-3",
+      "name": "门窗维修",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-4",
+      "name": "电梯故障",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-5",
+      "name": "消防检修",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-6",
+      "name": "其他",
+      "category": "owner"
+    }
+  ],
+  "nextRtId": 19,
+  "technicians": [],
+  "nextTechId": 6,
+  "assets": [],
+  "nextAssetId": 8,
+  "inventory": [],
+  "nextInvId": 9,
+  "inventoryTransactions": [],
+  "nextTrId": 7,
+  "addresses": [],
+  "nextAddrId": 6,
+  "zones": [],
+  "nextZoneId": 11,
+  "assetCategories": [],
+  "nextAcId": 7,
+  "fixedAssets": [],
+  "nextFaId": 7,
+  "fixedAssetCategories": [],
+  "nextFacId": 6,
+  "knowledge": [],
+  "nextKbId": 6
+}

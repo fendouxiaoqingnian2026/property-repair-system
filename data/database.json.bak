@@ -1,0 +1,364 @@
+{
+  "version": "3.0",
+  "savedAt": "2026-06-09T02:07:30.105Z",
+  "users": [
+    {
+      "id": 1,
+      "name": "admin",
+      "password": "admin123",
+      "role": "超级管理员",
+      "status": "active",
+      "email": "admin@smartproperty.com",
+      "avatar": "👑"
+    },
+    {
+      "id": 2,
+      "name": "张经理",
+      "password": "123456",
+      "role": "库管员",
+      "status": "active",
+      "email": "zhang@smartproperty.com",
+      "avatar": "📦"
+    },
+    {
+      "id": 3,
+      "name": "李主管",
+      "password": "123456",
+      "role": "工程人员",
+      "status": "active",
+      "email": "li@smartproperty.com",
+      "avatar": "🔧"
+    },
+    {
+      "id": 4,
+      "name": "王客服",
+      "password": "123456",
+      "role": "客服员",
+      "status": "active",
+      "email": "wang@smartproperty.com",
+      "avatar": "🎧"
+    },
+    {
+      "id": 5,
+      "name": "赵文员",
+      "password": "123456",
+      "role": "客服员",
+      "status": "disabled",
+      "email": "zhao@smartproperty.com",
+      "avatar": "👤"
+    }
+  ],
+  "nextUserId": 6,
+  "orders": [
+    {
+      "id": "HSJ-2026-0001",
+      "type": "水电维修",
+      "address": "1栋201室",
+      "contact": "张三",
+      "phone": "13800001111",
+      "priority": "紧急",
+      "status": "processing",
+      "tech": "李主管",
+      "time": "2026-06-08 09:00",
+      "dispatchedAt": "2026-06-08 09:15",
+      "desc": "厨房水管漏水，影响楼下",
+      "materials": "密封胶, 水管接头"
+    },
+    {
+      "id": "HSJ-2026-0002",
+      "type": "管道疏通",
+      "address": "2栋305室",
+      "contact": "李四",
+      "phone": "13800002222",
+      "priority": "高",
+      "status": "pending",
+      "tech": "",
+      "time": "2026-06-08 10:30",
+      "desc": "客厅下水道堵塞，返水严重",
+      "materials": ""
+    },
+    {
+      "id": "HSJ-2026-0003",
+      "type": "门窗维修",
+      "address": "公区大堂",
+      "contact": "物业",
+      "phone": "13800000000",
+      "priority": "普通",
+      "status": "completed",
+      "tech": "李主管",
+      "time": "2026-06-07 14:00",
+      "dispatchedAt": "2026-06-07 14:20",
+      "completedAt": "2026-06-07 15:45",
+      "desc": "大堂玻璃门闭合异常",
+      "materials": "门轴x2, 螺丝x8"
+    }
+  ],
+  "nextOrderId": 4,
+  "technicians": [
+    {
+      "id": 1,
+      "name": "李主管",
+      "phone": "13900001111",
+      "specialty": "电路维修",
+      "status": "active",
+      "orders": 12,
+      "rating": 4.8
+    },
+    {
+      "id": 2,
+      "name": "王师傅",
+      "phone": "13900002222",
+      "specialty": "水暖维修",
+      "status": "active",
+      "orders": 8,
+      "rating": 4.6
+    },
+    {
+      "id": 3,
+      "name": "赵师傅",
+      "phone": "13900003333",
+      "specialty": "门窗维修",
+      "status": "inactive",
+      "orders": 5,
+      "rating": 4.5
+    }
+  ],
+  "nextTechId": 4,
+  "assets": [
+    {
+      "id": 1,
+      "code": "SB-001",
+      "name": "消防水泵",
+      "cat": "消防设备",
+      "loc": "地下室泵房",
+      "model": "XBD5.0/30",
+      "date": "2022-01-15",
+      "cycle": 12,
+      "status": "normal"
+    },
+    {
+      "id": 2,
+      "code": "SB-002",
+      "name": "电梯轿厢",
+      "cat": "电梯设备",
+      "loc": "1号楼",
+      "model": "KONE MonoSpace",
+      "date": "2021-06-01",
+      "cycle": 3,
+      "status": "maintenance"
+    },
+    {
+      "id": 3,
+      "code": "SB-003",
+      "name": "监控摄像头",
+      "cat": "安防设备",
+      "loc": "小区大门",
+      "model": "DS-2CD2T47",
+      "date": "2023-03-10",
+      "cycle": 24,
+      "status": "normal"
+    }
+  ],
+  "nextAssetId": 4,
+  "inventory": [
+    {
+      "id": 1,
+      "code": "CL-001",
+      "name": "密封胶",
+      "cat": "防水材料",
+      "spec": "中性硅酮",
+      "unit": "支",
+      "qty": 50,
+      "safe": 20
+    },
+    {
+      "id": 2,
+      "code": "CL-002",
+      "name": "水管接头",
+      "cat": "管道配件",
+      "spec": "DN25 PPR",
+      "unit": "个",
+      "qty": 8,
+      "safe": 15
+    },
+    {
+      "id": 3,
+      "code": "CL-003",
+      "name": "空气开关",
+      "cat": "电气元件",
+      "spec": "2P 16A DZ47",
+      "unit": "个",
+      "qty": 30,
+      "safe": 10
+    }
+  ],
+  "nextInvId": 4,
+  "inventoryTransactions": [],
+  "nextTrId": 1,
+  "fixedAssets": [
+    {
+      "id": 1,
+      "code": "GD-001",
+      "name": "值班室空调",
+      "cat": "办公电器",
+      "spec": "格力1.5P",
+      "location": "物业值班室",
+      "responsible": "admin",
+      "date": "2023-01-10",
+      "status": "normal",
+      "note": ""
+    },
+    {
+      "id": 2,
+      "code": "GD-002",
+      "name": "巡逻电动车",
+      "cat": "交通工具",
+      "spec": "台铃48V",
+      "location": "地下停车场",
+      "responsible": "admin",
+      "date": "2022-08-15",
+      "status": "normal",
+      "note": ""
+    }
+  ],
+  "nextFaId": 3,
+  "addresses": [],
+  "nextAddrId": 1,
+  "zones": [],
+  "nextZoneId": 1,
+  "repairTypes": [
+    {
+      "id": "hsj-lx-1",
+      "name": "水电维修",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-2",
+      "name": "管道疏通",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-3",
+      "name": "门窗维修",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-4",
+      "name": "空调维修",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-5",
+      "name": "电梯故障",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-6",
+      "name": "墙面修补",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-7",
+      "name": "弱电系统",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-8",
+      "name": "其他",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-9",
+      "name": "电梯故障",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-10",
+      "name": "楼道照明",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-11",
+      "name": "消防设施",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-12",
+      "name": "门禁系统",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-13",
+      "name": "绿化/景观",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-14",
+      "name": "地下车库",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-15",
+      "name": "健身器材",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-16",
+      "name": "公共卫生间",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-17",
+      "name": "外墙/屋顶",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-18",
+      "name": "其他公区",
+      "category": "public"
+    }
+  ],
+  "nextRtId": 19,
+  "assetCategories": [
+    "消防设备",
+    "电梯设备",
+    "安防设备",
+    "供电设备",
+    "给排水设备"
+  ],
+  "nextAcId": 6,
+  "fixedAssetCategories": [
+    "办公电器",
+    "交通工具",
+    "办公家具",
+    "通讯设备"
+  ],
+  "nextFacId": 5,
+  "knowledge": [
+    {
+      "id": 1,
+      "title": "水管漏水快速处理指南",
+      "cat": "水电维修",
+      "diff": "简单",
+      "views": 128,
+      "date": "2026-05-10"
+    },
+    {
+      "id": 2,
+      "title": "家用空调常见故障诊断",
+      "cat": "设备维修",
+      "diff": "中等",
+      "views": 96,
+      "date": "2026-04-22"
+    },
+    {
+      "id": 3,
+      "title": "电路短路排查方法",
+      "cat": "电气维修",
+      "diff": "困难",
+      "views": 74,
+      "date": "2026-03-15"
+    }
+  ],
+  "nextKbId": 4
+}

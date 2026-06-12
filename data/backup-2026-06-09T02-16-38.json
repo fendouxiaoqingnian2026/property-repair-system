@@ -1,0 +1,129 @@
+{
+  "version": "3.1",
+  "savedAt": "2026-06-09T02:16:24.458Z",
+  "users": [
+    {
+      "id": 1,
+      "name": "admin",
+      "password": "admin123",
+      "role": "超级管理员",
+      "status": "active",
+      "email": "admin@smartproperty.com",
+      "avatar": "👑"
+    },
+    {
+      "id": 2,
+      "name": "张经理",
+      "password": "123456",
+      "role": "库管员",
+      "status": "active",
+      "email": "zhang@smartproperty.com",
+      "avatar": "📦"
+    },
+    {
+      "id": 3,
+      "name": "李主管",
+      "password": "123456",
+      "role": "工程人员",
+      "status": "active",
+      "email": "li@smartproperty.com",
+      "avatar": "🔧"
+    }
+  ],
+  "nextUserId": 6,
+  "orders": [
+    {
+      "id": "HSJ-2026-0001",
+      "type": "水管漏水",
+      "address": "1栋201室",
+      "contact": "老张",
+      "phone": "13800001111",
+      "priority": "紧急",
+      "status": "processing",
+      "tech": "李主管",
+      "time": "2026-06-08 09:00",
+      "desc": "厨房漏水严重",
+      "materials": "密封胶x3"
+    },
+    {
+      "id": "HSJ-2026-0002",
+      "type": "电路故障",
+      "address": "2栋305室",
+      "contact": "李四",
+      "phone": "13800002222",
+      "priority": "高",
+      "status": "pending",
+      "tech": "",
+      "time": "2026-06-08 10:30",
+      "desc": "客厅灯不亮",
+      "materials": ""
+    },
+    {
+      "id": "HSJ-2026-0003",
+      "type": "门窗维修",
+      "address": "公区大堂",
+      "contact": "物业",
+      "phone": "13800000000",
+      "priority": "普通",
+      "status": "completed",
+      "tech": "李主管",
+      "time": "2026-06-07 14:00",
+      "desc": "门合页损坏",
+      "materials": "合页x2"
+    }
+  ],
+  "nextOrderId": 2026004,
+  "repairTypes": [
+    {
+      "id": "hsj-lx-1",
+      "name": "水管漏水",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-2",
+      "name": "电路故障",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-3",
+      "name": "门窗维修",
+      "category": "owner"
+    },
+    {
+      "id": "hsj-lx-4",
+      "name": "电梯故障",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-5",
+      "name": "消防检修",
+      "category": "public"
+    },
+    {
+      "id": "hsj-lx-6",
+      "name": "其他",
+      "category": "owner"
+    }
+  ],
+  "nextRtId": 19,
+  "technicians": [],
+  "nextTechId": 1,
+  "assets": [],
+  "nextAssetId": 1,
+  "inventory": [],
+  "nextInvId": 1,
+  "inventoryTransactions": [],
+  "nextTrId": 1,
+  "addresses": [],
+  "nextAddrId": 1,
+  "zones": [],
+  "nextZoneId": 1,
+  "assetCategories": [],
+  "nextAcId": 1,
+  "fixedAssets": [],
+  "nextFaId": 1,
+  "fixedAssetCategories": [],
+  "nextFacId": 1,
+  "knowledge": [],
+  "nextKbId": 1
+}
