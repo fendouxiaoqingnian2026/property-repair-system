@@ -457,6 +457,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
     <div class="nav-item" data-page="dispatch"><span class="nav-icon">📬</span> 派单管理<span class="badge" id="dispatchBadge">5</span></div>
     <div class="nav-item" data-page="dispatch-orders"><span class="nav-icon">📋</span> 派单工单管理<span class="badge" id="dispatchOrdersBadge">7</span></div>
     <div class="nav-item" data-page="reports"><span class="nav-icon">📊</span> 报表查询</div>
+    <div class="nav-item" data-page="owners"><span class="nav-icon">👤</span> 业主信息管理</div>
     <div class="nav-section">服务管理</div>
     <div class="nav-item" data-page="repair"><span class="nav-icon">🔧</span> 业主报修</div>
     <div class="nav-item" data-page="public-repair"><span class="nav-icon">🏘️</span> 公区报修</div>
@@ -711,6 +712,37 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <tbody id="rptDetailBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE: 业主信息管理 ==================== -->
+    <div class="page" id="page-owners">
+      <div class="data-table-wrap" id="printArea-owners">
+        <div class="print-header" style="display:none;"><h3 class="print-title">👤 业主信息管理</h3><p class="print-meta">打印时间：<span id="printTime-owners"></span></p></div>
+        <div class="table-header">
+          <h3>👤 业主信息管理</h3>
+          <div class="table-filters">
+            <select class="filter-select" id="ownerFilterStatus" onchange="renderOwners()">
+              <option value="all">全部状态</option>
+              <option value="入住">🟢 已入住</option>
+              <option value="空置">⚪ 空置</option>
+              <option value="装修">🔨 装修中</option>
+            </select>
+            <select class="filter-select" id="ownerFilterBuilding" onchange="renderOwners()">
+              <option value="all">全部楼栋</option>
+            </select>
+            <input type="text" class="filter-input" placeholder="🔍 搜索业主..." id="ownerSearch" oninput="renderOwners()">
+            <button class="btn btn-primary btn-sm" onclick="showOwnerModal()">+ 添加业主</button>
+            <button class="btn btn-secondary btn-sm" onclick="printSection('owners')">🖨️ 打印</button>
+          </div>
+        </div>
+        <!-- 统计卡片 -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
+          <div class="stat-card blue" style="padding:18px 22px;"><div class="stat-icon">👥</div><div class="stat-info"><h3 id="ownerTotalCount">0</h3><p>业主总数</p></div></div>
+          <div class="stat-card green" style="padding:18px 22px;"><div class="stat-icon">🟢</div><div class="stat-info"><h3 id="ownerMoveInCount">0</h3><p>已入住</p></div></div>
+          <div class="stat-card orange" style="padding:18px 22px;"><div class="stat-icon">⚪</div><div class="stat-info"><h3 id="ownerVacantCount">0</h3><p>空置/装修</p></div></div>
+        </div>
+        <table class="data-table"><thead><tr><th>业主编号</th><th>业主姓名</th><th>联系电话</th><th>楼栋</th><th>单元</th><th>房号</th><th>完整地址</th><th>状态</th><th>入住日期</th><th>操作</th></tr></thead><tbody id="ownersTable"></tbody></table>
       </div>
     </div>
 
@@ -1153,6 +1185,15 @@ let addresses = [
 ];
 let nextAddrId = 6;
 
+let owners = [
+  { id: 1, name: '王先生', phone: '138****6789', idCard: '3201**********1234', building: 'A栋', unit: '1单元', room: '101', full: 'A栋-1单元-101', status: '入住', moveInDate: '2024-03-15', email: 'wang@example.com', note: '' },
+  { id: 2, name: '吴先生', phone: '138****8901', idCard: '3202**********5678', building: 'A栋', unit: '1单元', room: '102', full: 'A栋-1单元-102', status: '入住', moveInDate: '2024-06-20', email: 'wu@example.com', note: '' },
+  { id: 3, name: '张先生', phone: '135****7890', idCard: '3203**********9012', building: 'A栋', unit: '2单元', room: '201', full: 'A栋-2单元-201', status: '入住', moveInDate: '2023-11-01', email: 'zhang@example.com', note: '' },
+  { id: 4, name: '陈女士', phone: '137****4567', idCard: '3204**********3456', building: 'B栋', unit: '1单元', room: '301', full: 'B栋-1单元-301', status: '入住', moveInDate: '2024-01-10', email: 'chen@example.com', note: '' },
+  { id: 5, name: '李女士', phone: '139****8901', idCard: '3205**********7890', building: 'B栋', unit: '2单元', room: '502', full: 'B栋-2单元-502', status: '空置', moveInDate: '', email: 'li@example.com', note: '业主常年在外地' },
+];
+let nextOwnerId = 6;
+
 let zones = [
   { id: 1, name: 'A栋-大厅', building: 'A栋', type: '公共通道', manager: '赵师傅', status: '正常' },
   { id: 2, name: 'A栋-走廊', building: 'A栋', type: '公共通道', manager: '赵师傅', status: '正常' },
@@ -1250,7 +1291,7 @@ function navigateTo(page) {
   if (pageEl) pageEl.classList.add('active');
   if (navEl) navEl.classList.add('active');
   const titles = {
-    dashboard:'📊 数据大屏',orders:'📋 工单管理',dispatch:'📬 派单管理','dispatch-orders':'📋 派单工单管理',reports:'📊 报表查询',
+    dashboard:'📊 数据大屏',orders:'📋 工单管理',dispatch:'📬 派单管理','dispatch-orders':'📋 派单工单管理',reports:'📊 报表查询',owners:'👤 业主信息管理',
     repair:'🔧 业主报修','public-repair':'🏘️ 公区报修',tracking:'📍 进度追踪',
     assets:'🏗️ 资产管理',warehouse:'🏪 库房管理',fixedassets:'📦 固定资产管理',technicians:'👨‍🔧 维修师傅',
     analytics:'📈 数据分析',knowledge:'📚 知识库',addresses:'📍 报修地址管理',zones:'🗺️ 公区管理',
@@ -1272,6 +1313,7 @@ function navigateTo(page) {
   if (page === 'dispatch-orders') { populateDispatchOrdersTechFilter(); renderDispatchOrdersPage(); }
   if (page === 'reports') { setDefaultReportDates(); renderReports(); }
   if (page === 'orders') filterOrders();
+  if (page === 'owners') renderOwners();
   if (page === 'dashboard') updateDashboardStats();
   if (page === 'analytics') { drawDurationChart(); drawPerfChart(); drawHeatmapChart(); drawSatisfactionChart(); }
   if (page === 'knowledge') renderKnowledge();
@@ -3453,6 +3495,153 @@ function deleteAddress(id) {
   showToast('✅ 地址已删除', 'success');
 }
 
+// ============ OWNERS (业主信息管理) ============
+function renderOwners() {
+  const search = (document.getElementById('ownerSearch')?.value || '').toLowerCase();
+  const filterStatus = document.getElementById('ownerFilterStatus')?.value || 'all';
+  const filterBuilding = document.getElementById('ownerFilterBuilding')?.value || 'all';
+  let filtered = owners;
+  if (filterStatus !== 'all') filtered = filtered.filter(o => o.status === filterStatus);
+  if (filterBuilding !== 'all') filtered = filtered.filter(o => o.building === filterBuilding);
+  if (search) filtered = filtered.filter(o =>
+    o.name.toLowerCase().includes(search) || o.phone.includes(search) || o.full.includes(search) || (o.idCard||'').includes(search)
+  );
+  // 更新楼栋筛选下拉
+  const bldSel = document.getElementById('ownerFilterBuilding');
+  if (bldSel && bldSel.options.length <= 1) {
+    const buildings = [...new Set(owners.map(o => o.building))].sort();
+    buildings.forEach(b => { const opt = document.createElement('option'); opt.value = b; opt.textContent = b; bldSel.appendChild(opt); });
+  }
+  // 更新统计
+  const total = owners.length;
+  const moveIn = owners.filter(o => o.status === '入住').length;
+  const vacant = total - moveIn;
+  const elTotal = document.getElementById('ownerTotalCount');
+  const elMoveIn = document.getElementById('ownerMoveInCount');
+  const elVacant = document.getElementById('ownerVacantCount');
+  if (elTotal) elTotal.textContent = total;
+  if (elMoveIn) elMoveIn.textContent = moveIn;
+  if (elVacant) elVacant.textContent = vacant;
+  // 渲染表格
+  const statusBadge = { '入住': '<span class="badge badge-completed">🟢 入住</span>', '空置': '<span class="badge badge-cancelled">⚪ 空置</span>', '装修': '<span class="badge badge-processing">🔨 装修中</span>' };
+  document.getElementById('ownersTable').innerHTML = filtered.map(o => `
+    <tr>
+      <td><strong>HSJ-YZ-${String(o.id).padStart(4,'0')}</strong></td>
+      <td><strong>${esc(o.name)}</strong></td>
+      <td>${esc(o.phone)}</td>
+      <td>${esc(o.building)}</td>
+      <td>${esc(o.unit)}</td>
+      <td>${esc(o.room)}</td>
+      <td>${esc(o.full)}</td>
+      <td>${statusBadge[o.status] || o.status}</td>
+      <td>${o.moveInDate || '—'}</td>
+      <td>
+        <button class="btn btn-primary btn-xs" onclick="showOwnerModal(${o.id})">编辑</button>
+        <button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteOwner(${o.id})">删除</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:32px;">暂无业主数据，点击"+ 添加业主"开始录入</td></tr>';
+}
+
+function showOwnerModal(id = null) {
+  const o = id ? owners.find(o => o.id === id) : null;
+  const buildings = [...new Set(owners.map(o => o.building))].sort();
+  const bldOptions = buildings.map(b => `<option value="${esc(b)}" ${o&&o.building===b?'selected':''}>${esc(b)}</option>`).join('');
+  openModal(o ? '✏️ 编辑业主信息' : '＋ 添加业主信息',
+    `<div style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;">
+      <div class="form-group"><label>业主姓名 *</label><input type="text" id="ownerName" value="${esc(o?o.name:'')}" placeholder="请输入业主姓名"></div>
+      <div class="form-group"><label>联系电话 *</label><input type="tel" id="ownerPhone" value="${esc(o?o.phone:'')}" placeholder="请输入联系电话"></div>
+      <div class="form-group"><label>身份证号</label><input type="text" id="ownerIdCard" value="${esc(o?o.idCard||'')}" placeholder="18位身份证号码"></div>
+      <div class="form-group"><label>邮箱</label><input type="email" id="ownerEmail" value="${esc(o?o.email||'')}" placeholder="业主邮箱地址"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="form-group"><label>楼栋 *</label>
+          <select id="ownerBuilding">
+            <option value="">选择楼栋</option>
+            <option value="A栋" ${o&&o.building==='A栋'?'selected':''}>A栋</option>
+            <option value="B栋" ${o&&o.building==='B栋'?'selected':''}>B栋</option>
+            <option value="C栋" ${o&&o.building==='C栋'?'selected':''}>C栋</option>
+            <option value="综合楼" ${o&&o.building==='综合楼'?'selected':''}>综合楼</option>
+          </select>
+        </div>
+        <div class="form-group"><label>单元 *</label><input type="text" id="ownerUnit" value="${esc(o?o.unit:'')}" placeholder="如：1单元"></div>
+        <div class="form-group"><label>房号 *</label><input type="text" id="ownerRoom" value="${esc(o?o.room:'')}" placeholder="如：101"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>入住状态</label>
+          <select id="ownerStatus">
+            <option value="入住" ${o&&o.status==='入住'?'selected':''}>🟢 已入住</option>
+            <option value="空置" ${o&&o.status==='空置'?'selected':''}>⚪ 空置</option>
+            <option value="装修" ${o&&o.status==='装修'?'selected':''}>🔨 装修中</option>
+          </select>
+        </div>
+        <div class="form-group"><label>入住日期</label><input type="date" id="ownerMoveInDate" value="${o?o.moveInDate||'':'}'"></div>
+      </div>
+      <div class="form-group"><label>备注</label><textarea id="ownerNote" rows="2" placeholder="备注信息...">${esc(o?o.note||'')}</textarea></div>
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
+     <button class="btn btn-primary" onclick="${o?'saveOwnerEdit('+o.id+')':'createOwner()'}">💾 保存</button>`);
+}
+
+function createOwner() {
+  const name = document.getElementById('ownerName').value.trim();
+  const phone = document.getElementById('ownerPhone').value.trim();
+  const building = document.getElementById('ownerBuilding').value;
+  const unit = document.getElementById('ownerUnit').value.trim();
+  const room = document.getElementById('ownerRoom').value.trim();
+  if (!name) { showToast('请填写业主姓名', 'error'); return; }
+  if (!phone) { showToast('请填写联系电话', 'error'); return; }
+  if (!building || !unit || !room) { showToast('请填写完整的楼栋、单元和房号', 'error'); return; }
+  const full = building + '-' + unit + '-' + room;
+  if (owners.find(o => o.full === full)) { showToast('该地址已被其他业主占用', 'error'); return; }
+  const status = document.getElementById('ownerStatus').value;
+  const moveInDate = document.getElementById('ownerMoveInDate').value;
+  owners.push({
+    id: nextOwnerId++, name, phone,
+    idCard: document.getElementById('ownerIdCard').value.trim(),
+    email: document.getElementById('ownerEmail').value.trim(),
+    building, unit, room, full, status,
+    moveInDate: status === '入住' ? (moveInDate || new Date().toISOString().substring(0,10)) : '',
+    note: document.getElementById('ownerNote').value.trim()
+  });
+  closeModal(); renderOwners();
+  saveAllData();
+  showToast(`✅ 业主「${esc(name)}」添加成功`, 'success');
+}
+
+function saveOwnerEdit(id) {
+  const o = owners.find(o => o.id === id);
+  if (!o) return;
+  const building = document.getElementById('ownerBuilding').value;
+  const unit = document.getElementById('ownerUnit').value.trim();
+  const room = document.getElementById('ownerRoom').value.trim();
+  if (!document.getElementById('ownerName').value.trim()) { showToast('请填写业主姓名', 'error'); return; }
+  if (!document.getElementById('ownerPhone').value.trim()) { showToast('请填写联系电话', 'error'); return; }
+  if (!building || !unit || !room) { showToast('请填写完整的楼栋、单元和房号', 'error'); return; }
+  const full = building + '-' + unit + '-' + room;
+  const dup = owners.find(oo => oo.full === full && oo.id !== id);
+  if (dup) { showToast('该地址已被其他业主占用', 'error'); return; }
+  o.name = document.getElementById('ownerName').value.trim();
+  o.phone = document.getElementById('ownerPhone').value.trim();
+  o.idCard = document.getElementById('ownerIdCard').value.trim();
+  o.email = document.getElementById('ownerEmail').value.trim();
+  o.building = building; o.unit = unit; o.room = room; o.full = full;
+  o.status = document.getElementById('ownerStatus').value;
+  o.moveInDate = o.status === '入住' ? (document.getElementById('ownerMoveInDate').value || new Date().toISOString().substring(0,10)) : '';
+  o.note = document.getElementById('ownerNote').value.trim();
+  closeModal(); renderOwners();
+  saveAllData();
+  showToast('✅ 业主信息已更新', 'success');
+}
+
+function deleteOwner(id) {
+  const o = owners.find(o => o.id === id);
+  if (!o) return;
+  if (!confirm(`确定删除业主「${esc(o.name)}」(${esc(o.full)})的信息吗？此操作不可恢复。`)) return;
+  owners = owners.filter(o => o.id !== id);
+  renderOwners();
+  saveAllData();
+  showToast('✅ 业主信息已删除', 'success');
+}
+
 // ============ REPAIR TYPES (报修类型管理) ============
 function renderRepairTypes() {
   const search = (document.getElementById('rtSearch')?.value || '').toLowerCase();
@@ -3850,8 +4039,8 @@ let currentUser = null; // 登录后设置，初始为null
 
 // ============ ROLE-BASED ACCESS CONTROL ============
 const rolePermissions = {
-  '超级管理员': ['dashboard','orders','dispatch','dispatch-orders','reports','repair','public-repair','tracking','assets','warehouse','fixedassets','analytics','knowledge','repairtypes','assetcats','facats','addresses','zones','technicians','backup','users'],
-  '客服员':       ['dashboard','orders','dispatch','dispatch-orders','reports','repair','public-repair','tracking','analytics','knowledge'],
+  '超级管理员': ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','assets','warehouse','fixedassets','analytics','knowledge','repairtypes','assetcats','facats','addresses','zones','technicians','backup','users'],
+  '客服员':       ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','analytics','knowledge'],
   '工程人员':     ['dashboard','orders','dispatch','dispatch-orders','reports','repair','public-repair','tracking','analytics','knowledge','technicians'],
   '库管员':       ['dashboard','assets','warehouse','fixedassets','assetcats','facats'],
 };
@@ -4799,9 +4988,9 @@ function saveAllData() {
   try {
     const data = {
       orders, technicians, assets, inventory, inventoryTransactions,
-      addresses, zones, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
+      addresses, zones, owners, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
       knowledge, fixedAssetInspections,
-      nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId,
+      nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
       savedAt: new Date().toISOString(),
       _saveCount: ((JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'))._saveCount || 0) + 1
@@ -4851,6 +5040,7 @@ function loadAllData() {
     if (data.inventoryTransactions) inventoryTransactions = data.inventoryTransactions;
     if (data.addresses) addresses = data.addresses;
     if (data.zones) zones = data.zones;
+    if (data.owners) owners = data.owners;
     if (data.repairTypes) repairTypes = data.repairTypes;
     if (data.assetCategories) assetCategories = data.assetCategories;
     if (data.fixedAssets) fixedAssets = data.fixedAssets;
@@ -4866,6 +5056,7 @@ function loadAllData() {
     if (data.nextTrId) nextTrId = data.nextTrId;
     if (data.nextAddrId) nextAddrId = data.nextAddrId;
     if (data.nextZoneId) nextZoneId = data.nextZoneId;
+    if (data.nextOwnerId) nextOwnerId = data.nextOwnerId;
     if (data.nextRtId) nextRtId = data.nextRtId;
     if (data.nextAcId) nextAcId = data.nextAcId;
     if (data.nextFaId) nextFaId = data.nextFaId;
@@ -4887,7 +5078,7 @@ function updateBackupStats() {
   document.getElementById('bkOrders').textContent = orders.length;
   document.getElementById('bkAssets').textContent = assets.length + fixedAssets.length;
   document.getElementById('bkInventory').textContent = inventory.length;
-  document.getElementById('bkOther').textContent = addresses.length + zones.length + technicians.length + users.length + repairTypes.length + assetCategories.length + fixedAssetCategories.length;
+  document.getElementById('bkOther').textContent = addresses.length + zones.length + owners.length + technicians.length + users.length + repairTypes.length + assetCategories.length + fixedAssetCategories.length;
 }
 
 function exportBackup() {
