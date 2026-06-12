@@ -731,9 +731,12 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <select class="filter-select" id="ownerFilterBuilding" onchange="renderOwners()">
               <option value="all">全部楼栋</option>
             </select>
-            <input type="text" class="filter-input" placeholder="🔍 搜索业主..." id="ownerSearch" oninput="renderOwners()">
+            <input type="text" class="filter-input" placeholder="🔍 搜索业主..." id="ownerSearch" onkeydown="if(event.key==='Enter')renderOwners()">
+            <button class="btn btn-primary btn-sm" onclick="renderOwners()">🔍 搜索</button>
             <button class="btn btn-primary btn-sm" onclick="showOwnerModal()">+ 添加业主</button>
-            <button class="btn btn-secondary btn-sm" onclick="printSection('owners')">🖨️ 打印</button>
+            <button class="btn btn-secondary btn-sm" onclick="showBuildingManager()">🏢 楼栋管理</button>
+            <button class="btn btn-secondary btn-sm" onclick="showUnitManager()">📐 单元管理</button>
+            <button class="btn btn-success btn-sm" onclick="printSection('owners')">🖨️ 打印业主信息</button>
           </div>
         </div>
         <!-- 统计卡片 -->
@@ -1193,6 +1196,9 @@ let owners = [
   { id: 5, name: '李女士', phone: '139****8901', idCard: '3205**********7890', building: 'B栋', unit: '2单元', room: '502', full: 'B栋-2单元-502', status: '空置', moveInDate: '', email: 'li@example.com', note: '业主常年在外地', parkingType: '', parkingCode: '', familyMembers: [] },
 ];
 let nextOwnerId = 6;
+
+let buildingList = ['A栋','B栋','C栋','综合楼'];
+let unitList = ['1单元','2单元','3单元'];
 
 let zones = [
   { id: 1, name: 'A栋-大厅', building: 'A栋', type: '公共通道', manager: '赵师傅', status: '正常' },
@@ -3551,6 +3557,8 @@ function showOwnerModal(id = null) {
   const famListHTML = window.renderFamList ? window.renderFamList() : '';
   const buildings = [...new Set(owners.map(o => o.building))].sort();
   const bldOptions = buildings.map(b => `<option value="${esc(b)}" ${o&&o.building===b?'selected':''}>${esc(b)}</option>`).join('');
+  const allBldOptions = (buildingList||[]).map(b => `<option value="${esc(b)}" ${o&&o.building===b?'selected':''}>${esc(b)}</option>`).join('');
+  const allUnitOptions = (unitList||[]).map(u => `<option value="${esc(u)}" ${o&&o.unit===u?'selected':''}>${esc(u)}</option>`).join('');
   openModal(o ? '✏️ 编辑业主信息' : '＋ 添加业主信息',
     `<div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:4px;" id="ownerModalBody">
       <div class="form-group"><label>业主姓名 *</label><input type="text" id="ownerName" value="${esc(o&&o.name||'')}" placeholder="请输入业主姓名"></div>
@@ -3561,13 +3569,17 @@ function showOwnerModal(id = null) {
         <div class="form-group"><label>楼栋 *</label>
           <select id="ownerBuilding">
             <option value="">选择楼栋</option>
-            <option value="A栋" ${o&&o.building==='A栋'?'selected':''}>A栋</option>
-            <option value="B栋" ${o&&o.building==='B栋'?'selected':''}>B栋</option>
-            <option value="C栋" ${o&&o.building==='C栋'?'selected':''}>C栋</option>
-            <option value="综合楼" ${o&&o.building==='综合楼'?'selected':''}>综合楼</option>
+            ${allBldOptions}
           </select>
         </div>
-        <div class="form-group"><label>单元 *</label><input type="text" id="ownerUnit" value="${esc(o?o.unit:'')}" placeholder="如：1单元"></div>
+        <div class="form-group"><label>单元 *</label>
+          <select id="ownerUnit" onchange="var c=document.getElementById('ownerUnitCustom');c.style.display=this.value==='_custom'?'block':'none';if(this.value!=='_custom')c.value=''">
+            <option value="">选择单元</option>
+            ${allUnitOptions}
+            <option value="_custom" ${o&&o.unit&&!unitList.includes(o.unit)?'selected':''}>自定义...</option>
+          </select>
+          <input type="text" id="ownerUnitCustom" value="${esc(o&&o.unit&&!unitList.includes(o.unit)?o.unit:'')}" placeholder="输入自定义单元" style="margin-top:6px;display:${o&&o.unit&&!unitList.includes(o.unit)?'block':'none'};padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:0.85rem;width:100%;" oninput="document.getElementById('ownerUnit').value='_custom'">
+        </div>
         <div class="form-group"><label>房号 *</label><input type="text" id="ownerRoom" value="${esc(o?o.room:'')}" placeholder="如：101"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -3620,11 +3632,18 @@ function showOwnerModal(id = null) {
      <button class="btn btn-primary" onclick="${o?'saveOwnerEdit('+o.id+')':'createOwner()'}">💾 保存</button>`);
 }
 
+function getOwnerUnit() {
+  const sel = document.getElementById('ownerUnit');
+  if (!sel) return '';
+  if (sel.value === '_custom') return (document.getElementById('ownerUnitCustom')?.value || '').trim();
+  return sel.value;
+}
+
 function createOwner() {
   const name = document.getElementById('ownerName').value.trim();
   const phone = document.getElementById('ownerPhone').value.trim();
   const building = document.getElementById('ownerBuilding').value;
-  const unit = document.getElementById('ownerUnit').value.trim();
+  const unit = getOwnerUnit();
   const room = document.getElementById('ownerRoom').value.trim();
   if (!name) { showToast('请填写业主姓名', 'error'); return; }
   if (!phone) { showToast('请填写联系电话', 'error'); return; }
@@ -3653,7 +3672,7 @@ function saveOwnerEdit(id) {
   const o = owners.find(o => o.id === id);
   if (!o) return;
   const building = document.getElementById('ownerBuilding').value;
-  const unit = document.getElementById('ownerUnit').value.trim();
+  const unit = getOwnerUnit();
   const room = document.getElementById('ownerRoom').value.trim();
   if (!document.getElementById('ownerName').value.trim()) { showToast('请填写业主姓名', 'error'); return; }
   if (!document.getElementById('ownerPhone').value.trim()) { showToast('请填写联系电话', 'error'); return; }
@@ -3738,6 +3757,96 @@ function toggleOwnerParkingCode() {
 }
 
 function mToast(msg) { showToast(msg, 'error'); }
+
+// ============ BUILDING & UNIT MANAGER (楼栋/单元管理) ============
+function showBuildingManager() {
+  const listHTML = (buildingList||[]).map((b, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:0.9rem;"><strong>🏢 ${esc(b)}</strong></span>
+      <button type="button" onclick="removeBuilding(${i})" style="background:none;border:none;color:var(--red-500);cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+  `).join('') || '<div style="text-align:center;color:var(--gray-400);padding:10px;">暂无楼栋数据</div>';
+
+  openModal('🏢 楼栋管理',
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="newBuildingName" placeholder="输入楼栋名称（如：D栋）" style="flex:1;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;">
+        <button class="btn btn-primary btn-sm" onclick="addBuilding()">＋ 添加</button>
+      </div>
+      <div style="max-height:240px;overflow-y:auto;" id="bldListArea">${listHTML}</div>
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">关闭</button>`
+  );
+}
+
+function addBuilding() {
+  const name = document.getElementById('newBuildingName').value.trim();
+  if (!name) { mToast('请输入楼栋名称'); return; }
+  if ((buildingList||[]).includes(name)) { mToast('该楼栋已存在'); return; }
+  buildingList.push(name);
+  document.getElementById('newBuildingName').value = '';
+  showBuildingManager(); // re-render
+  refreshOwnerBuildFilters();
+  saveAllData();
+  showToast(`✅ 楼栋「${esc(name)}」已添加`, 'success');
+}
+
+function removeBuilding(idx) {
+  const name = buildingList[idx];
+  if (!confirm(`确定删除楼栋「${esc(name)}」吗？`)) return;
+  buildingList.splice(idx, 1);
+  showBuildingManager();
+  refreshOwnerBuildFilters();
+  saveAllData();
+  showToast('✅ 楼栋已删除', 'success');
+}
+
+function showUnitManager() {
+  const listHTML = (unitList||[]).map((u, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:0.9rem;"><strong>📐 ${esc(u)}</strong></span>
+      <button type="button" onclick="removeUnit(${i})" style="background:none;border:none;color:var(--red-500);cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+  `).join('') || '<div style="text-align:center;color:var(--gray-400);padding:10px;">暂无单元数据</div>';
+
+  openModal('📐 单元管理',
+    `<div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="newUnitName" placeholder="输入单元名称（如：4单元）" style="flex:1;padding:8px 12px;border:1px solid var(--gray-300);border-radius:8px;">
+        <button class="btn btn-primary btn-sm" onclick="addUnit()">＋ 添加</button>
+      </div>
+      <div style="max-height:240px;overflow-y:auto;" id="unitListArea">${listHTML}</div>
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">关闭</button>`
+  );
+}
+
+function addUnit() {
+  const name = document.getElementById('newUnitName').value.trim();
+  if (!name) { mToast('请输入单元名称'); return; }
+  if ((unitList||[]).includes(name)) { mToast('该单元已存在'); return; }
+  unitList.push(name);
+  document.getElementById('newUnitName').value = '';
+  showUnitManager();
+  saveAllData();
+  showToast(`✅ 单元「${esc(name)}」已添加`, 'success');
+}
+
+function removeUnit(idx) {
+  const name = unitList[idx];
+  if (!confirm(`确定删除单元「${esc(name)}」吗？`)) return;
+  unitList.splice(idx, 1);
+  showUnitManager();
+  saveAllData();
+  showToast('✅ 单元已删除', 'success');
+}
+
+function refreshOwnerBuildFilters() {
+  const sel = document.getElementById('ownerFilterBuilding');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="all">全部楼栋</option>' + (buildingList||[]).map(b => `<option value="${esc(b)}" ${b===curVal?'selected':''}>${esc(b)}</option>`).join('');
+}
 
 // ============ REPAIR TYPES (报修类型管理) ============
 function renderRepairTypes() {
@@ -5086,7 +5195,7 @@ function saveAllData() {
   try {
     const data = {
       orders, technicians, assets, inventory, inventoryTransactions,
-      addresses, zones, owners, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
+      addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
       knowledge, fixedAssetInspections,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
@@ -5139,6 +5248,8 @@ function loadAllData() {
     if (data.addresses) addresses = data.addresses;
     if (data.zones) zones = data.zones;
     if (data.owners) owners = data.owners;
+    if (data.buildingList) buildingList = data.buildingList;
+    if (data.unitList) unitList = data.unitList;
     if (data.repairTypes) repairTypes = data.repairTypes;
     if (data.assetCategories) assetCategories = data.assetCategories;
     if (data.fixedAssets) fixedAssets = data.fixedAssets;
@@ -5185,7 +5296,7 @@ function exportBackup() {
     version: '2.6',
     exportedAt: new Date().toISOString(),
     orders, technicians, assets, inventory, inventoryTransactions,
-    addresses, zones, owners, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
+    addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
     knowledge, fixedAssetInspections,
     nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
     nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId
@@ -5226,6 +5337,8 @@ function importBackup(input) {
       if (data.addresses) addresses = data.addresses;
       if (data.zones) zones = data.zones;
       if (data.owners) owners = data.owners;
+      if (data.buildingList) buildingList = data.buildingList;
+      if (data.unitList) unitList = data.unitList;
       if (data.repairTypes) repairTypes = data.repairTypes;
       if (data.assetCategories) assetCategories = data.assetCategories;
       if (data.fixedAssets) fixedAssets = data.fixedAssets;
