@@ -742,7 +742,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
           <div class="stat-card green" style="padding:18px 22px;"><div class="stat-icon">🟢</div><div class="stat-info"><h3 id="ownerMoveInCount">0</h3><p>已入住</p></div></div>
           <div class="stat-card orange" style="padding:18px 22px;"><div class="stat-icon">⚪</div><div class="stat-info"><h3 id="ownerVacantCount">0</h3><p>空置/装修</p></div></div>
         </div>
-        <table class="data-table"><thead><tr><th>业主编号</th><th>业主姓名</th><th>联系电话</th><th>楼栋</th><th>单元</th><th>房号</th><th>完整地址</th><th>状态</th><th>入住日期</th><th>操作</th></tr></thead><tbody id="ownersTable"></tbody></table>
+        <table class="data-table"><thead><tr><th>业主编号</th><th>业主姓名</th><th>联系电话</th><th>楼栋</th><th>单元</th><th>房号</th><th>车位/车库</th><th>家庭成员</th><th>状态</th><th>入住日期</th><th>操作</th></tr></thead><tbody id="ownersTable"></tbody></table>
       </div>
     </div>
 
@@ -1186,11 +1186,11 @@ let addresses = [
 let nextAddrId = 6;
 
 let owners = [
-  { id: 1, name: '王先生', phone: '138****6789', idCard: '3201**********1234', building: 'A栋', unit: '1单元', room: '101', full: 'A栋-1单元-101', status: '入住', moveInDate: '2024-03-15', email: 'wang@example.com', note: '' },
-  { id: 2, name: '吴先生', phone: '138****8901', idCard: '3202**********5678', building: 'A栋', unit: '1单元', room: '102', full: 'A栋-1单元-102', status: '入住', moveInDate: '2024-06-20', email: 'wu@example.com', note: '' },
-  { id: 3, name: '张先生', phone: '135****7890', idCard: '3203**********9012', building: 'A栋', unit: '2单元', room: '201', full: 'A栋-2单元-201', status: '入住', moveInDate: '2023-11-01', email: 'zhang@example.com', note: '' },
-  { id: 4, name: '陈女士', phone: '137****4567', idCard: '3204**********3456', building: 'B栋', unit: '1单元', room: '301', full: 'B栋-1单元-301', status: '入住', moveInDate: '2024-01-10', email: 'chen@example.com', note: '' },
-  { id: 5, name: '李女士', phone: '139****8901', idCard: '3205**********7890', building: 'B栋', unit: '2单元', room: '502', full: 'B栋-2单元-502', status: '空置', moveInDate: '', email: 'li@example.com', note: '业主常年在外地' },
+  { id: 1, name: '王先生', phone: '138****6789', idCard: '3201**********1234', building: 'A栋', unit: '1单元', room: '101', full: 'A栋-1单元-101', status: '入住', moveInDate: '2024-03-15', email: 'wang@example.com', note: '', parkingType: '地下车位', parkingCode: 'B1-101', familyMembers: [{name:'王太太',relation:'配偶',phone:'138****0001',idCard:'3201**********5678'},{name:'王小宝',relation:'子女',phone:'',idCard:''}] },
+  { id: 2, name: '吴先生', phone: '138****8901', idCard: '3202**********5678', building: 'A栋', unit: '1单元', room: '102', full: 'A栋-1单元-102', status: '入住', moveInDate: '2024-06-20', email: 'wu@example.com', note: '', parkingType: '地面车位', parkingCode: 'DM-012', familyMembers: [] },
+  { id: 3, name: '张先生', phone: '135****7890', idCard: '3203**********9012', building: 'A栋', unit: '2单元', room: '201', full: 'A栋-2单元-201', status: '入住', moveInDate: '2023-11-01', email: 'zhang@example.com', note: '', parkingType: '独立车库', parkingCode: 'CK-03', familyMembers: [{name:'张太太',relation:'配偶',phone:'135****7891',idCard:'3203**********9013'},{name:'张小明',relation:'子女',phone:'',idCard:''},{name:'张大爷',relation:'父母',phone:'135****7892',idCard:''}] },
+  { id: 4, name: '陈女士', phone: '137****4567', idCard: '3204**********3456', building: 'B栋', unit: '1单元', room: '301', full: 'B栋-1单元-301', status: '入住', moveInDate: '2024-01-10', email: 'chen@example.com', note: '', parkingType: '', parkingCode: '', familyMembers: [] },
+  { id: 5, name: '李女士', phone: '139****8901', idCard: '3205**********7890', building: 'B栋', unit: '2单元', room: '502', full: 'B栋-2单元-502', status: '空置', moveInDate: '', email: 'li@example.com', note: '业主常年在外地', parkingType: '', parkingCode: '', familyMembers: [] },
 ];
 let nextOwnerId = 6;
 
@@ -3524,6 +3524,7 @@ function renderOwners() {
   if (elVacant) elVacant.textContent = vacant;
   // 渲染表格
   const statusBadge = { '入住': '<span class="badge badge-completed">🟢 入住</span>', '空置': '<span class="badge badge-cancelled">⚪ 空置</span>', '装修': '<span class="badge badge-processing">🔨 装修中</span>' };
+  const parkingIcon = { '地下车位':'🅿️', '地面车位':'🚗', '独立车库':'🏠' };
   document.getElementById('ownersTable').innerHTML = filtered.map(o => `
     <tr>
       <td><strong>HSJ-YZ-${String(o.id).padStart(4,'0')}</strong></td>
@@ -3532,22 +3533,26 @@ function renderOwners() {
       <td>${esc(o.building)}</td>
       <td>${esc(o.unit)}</td>
       <td>${esc(o.room)}</td>
-      <td>${esc(o.full)}</td>
+      <td>${o.parkingType ? (parkingIcon[o.parkingType]||'')+' '+esc(o.parkingType)+(o.parkingCode?' <small style="color:var(--gray-500)">'+esc(o.parkingCode)+'</small>':'') : '<span style="color:var(--gray-400)">—</span>'}</td>
+      <td>${(o.familyMembers||[]).length ? '<span style="color:var(--blue-500);font-weight:600;">'+(o.familyMembers||[]).length+'人</span>' : '<span style="color:var(--gray-400)">—</span>'}</td>
       <td>${statusBadge[o.status] || o.status}</td>
       <td>${o.moveInDate || '—'}</td>
       <td>
         <button class="btn btn-primary btn-xs" onclick="showOwnerModal(${o.id})">编辑</button>
         <button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteOwner(${o.id})">删除</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:32px;">暂无业主数据，点击"+ 添加业主"开始录入</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="11" style="text-align:center;color:var(--gray-400);padding:32px;">暂无业主数据，点击"+ 添加业主"开始录入</td></tr>';
 }
 
 function showOwnerModal(id = null) {
   const o = id ? owners.find(o => o.id === id) : null;
+  window._ownerFamilyMembers = o && o.familyMembers ? JSON.parse(JSON.stringify(o.familyMembers)) : [];
+  window._ownerEditId = id || 0;
+  const famListHTML = window.renderFamList ? window.renderFamList() : '';
   const buildings = [...new Set(owners.map(o => o.building))].sort();
   const bldOptions = buildings.map(b => `<option value="${esc(b)}" ${o&&o.building===b?'selected':''}>${esc(b)}</option>`).join('');
   openModal(o ? '✏️ 编辑业主信息' : '＋ 添加业主信息',
-    `<div style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;">
+    `<div style="display:flex;flex-direction:column;gap:14px;max-height:65vh;overflow-y:auto;padding-right:4px;" id="ownerModalBody">
       <div class="form-group"><label>业主姓名 *</label><input type="text" id="ownerName" value="${esc(o&&o.name||'')}" placeholder="请输入业主姓名"></div>
       <div class="form-group"><label>联系电话 *</label><input type="tel" id="ownerPhone" value="${esc(o&&o.phone||'')}" placeholder="请输入联系电话"></div>
       <div class="form-group"><label>身份证号</label><input type="text" id="ownerIdCard" value="${esc(o&&o.idCard||'')}" placeholder="18位身份证号码"></div>
@@ -3575,6 +3580,40 @@ function showOwnerModal(id = null) {
         </div>
         <div class="form-group"><label>入住日期</label><input type="date" id="ownerMoveInDate" value="${o&&o.moveInDate||''}"></div>
       </div>
+      <!-- 车位/车库 -->
+      <fieldset style="border:1px solid var(--gray-200);border-radius:10px;padding:14px 16px 8px;">
+        <legend style="font-weight:700;color:var(--gray-700);padding:0 8px;">🅿️ 车位 / 车库</legend>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group"><label>车位类型</label>
+            <select id="ownerParkingType" onchange="toggleOwnerParkingCode()">
+              <option value="">🚫 无车位</option>
+              <option value="地下车位" ${o&&o.parkingType==='地下车位'?'selected':''}>🅿️ 地下车位</option>
+              <option value="地面车位" ${o&&o.parkingType==='地面车位'?'selected':''}>🚗 地面车位</option>
+              <option value="独立车库" ${o&&o.parkingType==='独立车库'?'selected':''}>🏠 独立车库</option>
+            </select>
+          </div>
+          <div class="form-group"><label>车位编号</label><input type="text" id="ownerParkingCode" value="${esc(o&&o.parkingCode||'')}" placeholder="${o&&o.parkingType?'如：B1-101':'无车位无需编号'}" ${o&&o.parkingType?'':'disabled'}></div>
+        </div>
+      </fieldset>
+      <!-- 家庭成员 -->
+      <fieldset style="border:1px solid var(--gray-200);border-radius:10px;padding:14px 16px 8px;">
+        <legend style="font-weight:700;color:var(--gray-700);padding:0 8px;">👨‍👩‍👧‍👦 家庭成员 <span id="ownerFamCount" style="font-weight:400;color:var(--gray-500);font-size:0.85rem;">(${window._ownerFamilyMembers.length}人)</span></legend>
+        <div id="ownerFamList">${famListHTML}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--gray-200);">
+          <input type="text" id="ownerFamName" placeholder="姓名" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:0.85rem;">
+          <select id="ownerFamRelation" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:0.85rem;">
+            <option value="">选择关系</option>
+            <option value="配偶">配偶</option>
+            <option value="子女">子女</option>
+            <option value="父母">父母</option>
+            <option value="兄弟姐妹">兄弟姐妹</option>
+            <option value="其他亲属">其他亲属</option>
+          </select>
+          <input type="text" id="ownerFamPhone" placeholder="联系电话" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:0.85rem;">
+          <input type="text" id="ownerFamIdCard" placeholder="身份证号" style="padding:6px 10px;border:1px solid var(--gray-300);border-radius:6px;font-size:0.85rem;">
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" style="margin-top:8px;width:100%;" onclick="addOwnerFamilyMember()">＋ 添加家庭成员</button>
+      </fieldset>
       <div class="form-group"><label>备注</label><textarea id="ownerNote" rows="2" placeholder="备注信息...">${esc(o&&o.note||'')}</textarea></div>
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -3600,6 +3639,9 @@ function createOwner() {
     email: document.getElementById('ownerEmail').value.trim(),
     building, unit, room, full, status,
     moveInDate: status === '入住' ? (moveInDate || new Date().toISOString().substring(0,10)) : '',
+    parkingType: document.getElementById('ownerParkingType').value,
+    parkingCode: document.getElementById('ownerParkingCode').value.trim(),
+    familyMembers: JSON.parse(JSON.stringify(window._ownerFamilyMembers || [])),
     note: document.getElementById('ownerNote').value.trim()
   });
   closeModal(); renderOwners();
@@ -3626,6 +3668,9 @@ function saveOwnerEdit(id) {
   o.building = building; o.unit = unit; o.room = room; o.full = full;
   o.status = document.getElementById('ownerStatus').value;
   o.moveInDate = o.status === '入住' ? (document.getElementById('ownerMoveInDate').value || new Date().toISOString().substring(0,10)) : '';
+  o.parkingType = document.getElementById('ownerParkingType').value;
+  o.parkingCode = document.getElementById('ownerParkingCode').value.trim();
+  o.familyMembers = JSON.parse(JSON.stringify(window._ownerFamilyMembers || []));
   o.note = document.getElementById('ownerNote').value.trim();
   closeModal(); renderOwners();
   saveAllData();
@@ -3641,6 +3686,58 @@ function deleteOwner(id) {
   saveAllData();
   showToast('✅ 业主信息已删除', 'success');
 }
+
+// ============ OWNER FAMILY MEMBERS (家庭成员管理) ============
+function renderFamList() {
+  const members = window._ownerFamilyMembers || [];
+  if (!members.length) return '<div style="text-align:center;color:var(--gray-400);padding:10px;font-size:0.85rem;">暂无家庭成员，请在下方添加</div>';
+  return members.map((m, idx) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;align-items:center;padding:8px 10px;background:var(--gray-50);border-radius:8px;margin-bottom:6px;font-size:0.82rem;">
+      <span><strong>${esc(m.name)}</strong></span>
+      <span style="color:var(--gray-600);">${esc(m.relation)}</span>
+      <span style="color:var(--gray-600);">${esc(m.phone||'—')}</span>
+      <span style="color:var(--gray-500);font-size:0.75rem;">${esc((m.idCard||'').substring(0,6)+'****')||'—'}</span>
+      <button type="button" onclick="removeOwnerFamilyMember(${idx})" style="background:none;border:none;color:var(--red-500);cursor:pointer;font-size:1rem;padding:2px 6px;" title="移除">✕</button>
+    </div>
+  `).join('');
+}
+
+function refreshFamListUI() {
+  const listEl = document.getElementById('ownerFamList');
+  const countEl = document.getElementById('ownerFamCount');
+  if (listEl) listEl.innerHTML = renderFamList();
+  if (countEl) countEl.textContent = '(' + (window._ownerFamilyMembers||[]).length + '人)';
+}
+
+function addOwnerFamilyMember() {
+  const name = document.getElementById('ownerFamName').value.trim();
+  const relation = document.getElementById('ownerFamRelation').value;
+  if (!name) { mToast('请输入家庭成员姓名'); return; }
+  if (!relation) { mToast('请选择与业主关系'); return; }
+  const phone = document.getElementById('ownerFamPhone').value.trim();
+  const idCard = document.getElementById('ownerFamIdCard').value.trim();
+  (window._ownerFamilyMembers || (window._ownerFamilyMembers = [])).push({ name, relation, phone, idCard });
+  document.getElementById('ownerFamName').value = '';
+  document.getElementById('ownerFamRelation').value = '';
+  document.getElementById('ownerFamPhone').value = '';
+  document.getElementById('ownerFamIdCard').value = '';
+  refreshFamListUI();
+}
+
+function removeOwnerFamilyMember(idx) {
+  if (!window._ownerFamilyMembers) return;
+  window._ownerFamilyMembers.splice(idx, 1);
+  refreshFamListUI();
+}
+
+function toggleOwnerParkingCode() {
+  const typeVal = document.getElementById('ownerParkingType').value;
+  const codeInput = document.getElementById('ownerParkingCode');
+  if (!typeVal) { codeInput.value = ''; codeInput.disabled = true; codeInput.placeholder = '无车位无需编号'; }
+  else { codeInput.disabled = false; codeInput.placeholder = '如：B1-101'; }
+}
+
+function mToast(msg) { showToast(msg, 'error'); }
 
 // ============ REPAIR TYPES (报修类型管理) ============
 function renderRepairTypes() {
