@@ -1633,6 +1633,7 @@ function saveOrderEdit(id) {
 function deleteOrder(id) {
   if (!confirm(`确定删除工单 ${id} 吗？此操作不可恢复。`)) return;
   orders = orders.filter(o => o.id !== id);
+  saveAllData(); // 立即持久化，不依赖 refreshAll
   refreshAll();
   showToast(`✅ 工单 ${id} 已删除`, 'success');
 }
@@ -1842,6 +1843,7 @@ function createOrder() {
   const imgCount = (_newOrderImages||[]).length;
   orders.unshift({ id, type, address: addr, contact, phone, priority, status: 'pending', tech: '', time: timeStr, desc, images: [...(_newOrderImages||[])], source: 'manual', creator: (currentUser && currentUser.name) || '系统', dispatchedAt: '', completedAt: '', materials: '' });
   _newOrderImages = [];
+  saveAllData(); // 立即持久化
   closeModal();
   refreshAll();
   showToast(`✅ 工单 ${id} 创建成功${imgCount > 0 ? '（含'+imgCount+'张图片）' : ''}`, 'success');
@@ -1943,6 +1945,7 @@ function confirmComplete(orderId) {
     if (t) { t.current = Math.max(0, t.current - 1); t.load = Math.round((t.current / t.max) * 100); if (t.load < 80) t.status = 'available'; }
   }
   closeModal();
+  saveAllData(); // 立即持久化工单完成状态
   refreshAll();
   showToast(`✅ 工单 ${orderId} 已完成${imgCount > 0 ? '（含'+imgCount+'张完成照片）' : ''}`, 'success');
 }
@@ -2678,6 +2681,7 @@ function submitRepair() {
   const id = 'HSJ-2026-' + String(nextOrderId).padStart(4, '0');
   nextOrderId++;
   orders.unshift({ id, type, address: addr, contact, phone, priority: '普通', status: 'pending', tech: '', time: timeStr, desc, source: 'owner', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  saveAllData(); // 立即持久化
   refreshAll();
   showToast(`✅ 报修提交成功！工单号：${id}`, 'success');
   setTimeout(() => navigateTo('tracking'), 1500);
@@ -2706,6 +2710,7 @@ function submitPublicRepair() {
   const id = 'HSJ-2026-' + String(nextOrderId).padStart(4, '0');
   nextOrderId++;
   orders.unshift({ id, type, address: zone, contact, phone, priority, status: 'pending', tech: '', time: timeStr, desc: '[公区报修] ' + desc, source: 'public', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  saveAllData(); // 立即持久化
   refreshAll();
   showToast(`✅ 公区报修提交成功！工单号：${id}`, 'success');
   setTimeout(() => navigateTo('orders'), 1500);
@@ -4735,7 +4740,8 @@ function saveAllData() {
       knowledge,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
-      savedAt: new Date().toISOString()
+      savedAt: new Date().toISOString(),
+      _saveCount: ((JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'))._saveCount || 0) + 1
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     // 更新自动保存时间显示
@@ -4747,6 +4753,7 @@ function saveAllData() {
     }
   } catch(e) {
     // localStorage 满了或不可用
+    console.error('[SaveAllData] 保存失败:', e.message);
     const el = document.getElementById('autoSaveTime');
     if (el) { el.textContent = '存储失败'; el.style.color = 'var(--danger)'; }
   }
@@ -5517,6 +5524,8 @@ saveAllData = function() {
 };
 
 // ============ INIT ============
+let _autoSaveTimer = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
 
   // ★ Step 0 — 同步快速登录检查（不等服务器数据，无闪现）
@@ -5563,7 +5572,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     drawPerfChart();
     drawHeatmapChart();
     drawSatisfactionChart();
+    resetSessionTimer(); // 启动会话超时
   }
+
+  // 🔒 兜底：每 10 秒自动保存一次，防止任何遗漏
+  _autoSaveTimer = setInterval(() => {
+    if (currentUser) saveAllData();
+  }, 10000);
 });
 </script>
 </body>
