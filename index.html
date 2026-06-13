@@ -491,6 +491,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
       <div><div class="user-name">admin</div><div class="user-role">超级管理员</div></div>
     </div>
     <div class="sidebar-logout">
+      <button onclick="showChangePasswordModal()" style="background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:12px;padding:4px 8px;width:100%;text-align:center;">🔑 修改密码</button>
       <button onclick="handleLogout()">🚪 退出登录</button>
     </div>
   </div>
@@ -4372,7 +4373,13 @@ function renderUsers() {
     <td>${u.created}</td><td>${statusMap[u.status]}</td>
     <td>${isSuperAdmin ? `<button class="btn btn-primary btn-xs" onclick="editUser(${u.id})">编辑</button>
         <button class="btn btn-warning btn-xs" style="margin-left:4px;" onclick="toggleUserStatus(${u.id})">${u.status==='active'?'禁用':'启用'}</button>
-        ${u.id !== currentUser.id ? `<button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteUser(${u.id})">删除</button>` : '<span class="badge" style="background:#e2e8f0;color:#94a3b8;margin-left:4px;">当前用户</span>'}` : '<span style="color:var(--gray-400);font-size:12px;">—</span>'}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:40px;">暂无用户记录</td></tr>';
+        <button class="btn btn-secondary btn-xs" style="margin-left:4px;" onclick="showChangePasswordModal(${u.id})">🔑 密码</button>
+        ${u.id !== currentUser.id ? `<button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteUser(${u.id})">删除</button>` : '<span class="badge" style="background:#e2e8f0;color:#94a3b8;margin-left:4px;">当前用户</span>'}`
+      : (currentUser && u.id === currentUser.id
+        ? `<button class="btn btn-primary btn-xs" onclick="editUser(${u.id})">编辑</button>
+           <button class="btn btn-secondary btn-xs" style="margin-left:4px;" onclick="showChangePasswordModal(${u.id})">🔑 修改密码</button>`
+        : '<span style="color:var(--gray-400);font-size:12px;">—</span>')
+    }</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:40px;">暂无用户记录</td></tr>';
 }
 
 function showUserModal(id = null) {
@@ -4537,7 +4544,12 @@ function showPermissionManager() {
         .perm-summary strong { color:var(--primary); font-size:16px; }
       </style>
       <div class="perm-tabs" id="permTabs">
-        ${roles.map(r => `<span class="perm-tab ${r===activeRole?'active':''}" onclick="window._switchPermRole('${r}')">${r}</span>`).join('')}
+        ${roles.map(function(r) {
+          var cls = r === activeRole ? ' active' : '';
+          var delBtn = r !== '超级管理员' ? " <span style=\"font-size:10px;opacity:0.6;cursor:pointer;\" onclick=\"event.stopPropagation();window._deleteRole('" + r + "')\">✕</span>" : '';
+          return '<span class="perm-tab' + cls + '" onclick="window._switchPermRole(\'' + r + '\')">' + r + delBtn + '</span>';
+        }).join('')}
+        <span class="perm-tab" id="btnAddRole" onclick="window._showAddRole()" style="border-style:dashed;color:var(--primary);border-color:var(--primary);">＋ 添加角色</span>
       </div>
       <div id="permBodyInner">
         ${permissionGroups.map(g => {
@@ -4592,6 +4604,54 @@ function showPermissionManager() {
     else perms.splice(idx, 1);
     renderPermBody();
   };
+  // 添加新角色
+  window._showAddRole = function() {
+    const tabs = document.getElementById('permTabs');
+    if (!tabs) return;
+    const btn = document.getElementById('btnAddRole');
+    if (btn) btn.style.display = 'none';
+    const inputHtml = `<span class="perm-tab" style="padding:4px 8px;display:inline-flex;gap:4px;">
+      <input id="newRoleInput" placeholder="输入角色名..." style="border:none;outline:none;font-size:13px;width:100px;background:transparent;" maxlength="10" onkeydown="if(event.key==='Enter')window._confirmAddRole()">
+      <span onclick="window._confirmAddRole()" style="cursor:pointer;color:var(--success);">✓</span>
+      <span onclick="window._cancelAddRole()" style="cursor:pointer;color:var(--danger);">✕</span>
+    </span>`;
+    tabs.insertAdjacentHTML('beforeend', inputHtml);
+    setTimeout(() => { const inp = document.getElementById('newRoleInput'); if (inp) inp.focus(); }, 50);
+  };
+  window._confirmAddRole = function() {
+    const inp = document.getElementById('newRoleInput');
+    const name = (inp && inp.value.trim()) || '';
+    if (!name) { showToast('请输入角色名称', 'error'); return; }
+    if (roles.includes(name)) { showToast('该角色名称已存在', 'error'); return; }
+    roles.push(name);
+    editingPerms[name] = [];
+    // 复制当前活跃角色的权限作为默认
+    if (activeRole && editingPerms[activeRole]) editingPerms[name] = [...editingPerms[activeRole]];
+    activeRole = name;
+    renderPermBody();
+  };
+  window._cancelAddRole = function() {
+    const btn = document.getElementById('btnAddRole');
+    if (btn) btn.style.display = '';
+    renderPermBody();
+  };
+  // 删除角色
+  window._deleteRole = function(role) {
+    if (role === '超级管理员') { showToast('⚠️ 不能删除超级管理员角色', 'error'); return; }
+    // 检查是否有用户在使用该角色
+    const usersWithRole = users.filter(u => u.role === role && u.status === 'active');
+    if (usersWithRole.length > 0) {
+      showToast(`⚠️ 有 ${usersWithRole.length} 个用户正在使用「${role}」角色，请先修改他们的角色`, 'error');
+      return;
+    }
+    if (!confirm(`确定删除角色「${role}」吗？\n\n删除后，该角色的权限配置将丢失。`)) return;
+    const idx = roles.indexOf(role);
+    if (idx !== -1) roles.splice(idx, 1);
+    delete editingPerms[role];
+    delete rolePermissions[role];
+    if (activeRole === role) activeRole = '超级管理员';
+    renderPermBody();
+  };
 
   openModal('🔐 权限管理 — 定义角色功能权限',
     '<div id="permBody" style="min-height:300px;max-height:calc(80vh - 140px);overflow-y:auto;"></div>',
@@ -4604,6 +4664,14 @@ function showPermissionManager() {
     Object.keys(editingPerms).forEach(role => {
       rolePermissions[role] = [...new Set(editingPerms[role])]; // 去重
     });
+    // 清理 rolePermissions 中已在 roles 里不存在的条目
+    Object.keys(rolePermissions).forEach(role => {
+      if (!roles.includes(role)) delete rolePermissions[role];
+    });
+    // 确保所有 roles 在 rolePermissions 中有条目
+    roles.forEach(role => {
+      if (!rolePermissions[role]) rolePermissions[role] = [];
+    });
     saveAllData();
     applyRoleVisibility();
     closeModal();
@@ -4611,6 +4679,57 @@ function showPermissionManager() {
   };
 
   renderPermBody();
+}
+
+// 修改密码（所有用户可修改自己的密码，超级管理员可修改他人密码）
+function showChangePasswordModal(targetUserId) {
+  if (!currentUser) return;
+  const targetId = targetUserId || currentUser.id;
+  const u = users.find(u => u.id === targetId);
+  if (!u) { showToast('用户不存在', 'error'); return; }
+  const isSelf = currentUser.id === targetId;
+  const isSuperAdmin = currentUser.role === '超级管理员';
+
+  // 权限检查：只能修改自己的，除非是超管
+  if (!isSelf && !isSuperAdmin) { showToast('⚠️ 只能修改自己的密码', 'error'); return; }
+
+  openModal(
+    `🔑 修改密码 — ${esc(u.name)}`,
+    `<div style="display:flex;flex-direction:column;gap:14px;">
+      ${isSelf ? `<div class="form-group"><label>旧密码 *</label><input type="password" id="chgOldPwd" placeholder="请输入旧密码" autocomplete="current-password"></div>` : ''}
+      <div class="form-group"><label>新密码 *</label><input type="password" id="chgNewPwd" placeholder="请输入新密码（至少4位）" autocomplete="new-password"></div>
+      <div class="form-group"><label>确认新密码 *</label><input type="password" id="chgConfirmPwd" placeholder="再次输入新密码" autocomplete="new-password"></div>
+      ${!isSelf ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:12px;color:#9a3412;">⚠ 你正在修改用户「'+esc(u.name)+'」的密码</div>' : ''}
+    </div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
+     <button class="btn btn-primary" onclick="executeChangePassword(${targetId})">💾 确认修改</button>`
+  );
+}
+
+async function executeChangePassword(targetId) {
+  const u = users.find(u => u.id === targetId);
+  if (!u) return;
+  const isSelf = currentUser.id === targetId;
+
+  const newPwd = document.getElementById('chgNewPwd').value;
+  const confirmPwd = document.getElementById('chgConfirmPwd').value;
+
+  if (!newPwd) { showToast('请输入新密码', 'error'); return; }
+  if (newPwd.length < 4) { showToast('密码至少4位', 'error'); return; }
+  if (newPwd !== confirmPwd) { showToast('两次输入的密码不一致', 'error'); return; }
+
+  if (isSelf) {
+    // 验证旧密码
+    const oldPwd = document.getElementById('chgOldPwd').value;
+    if (!oldPwd) { showToast('请输入旧密码', 'error'); return; }
+    const oldHash = await sha256(oldPwd);
+    if (u.password !== oldHash) { showToast('旧密码错误', 'error'); return; }
+  }
+
+  u.password = await sha256(newPwd);
+  saveAllData();
+  closeModal();
+  showToast('✅ 密码修改成功', 'success');
 }
 
 function updateCurrentUserLabel() {
@@ -5427,6 +5546,7 @@ function saveAllData() {
       addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
       knowledge, fixedAssetInspections,
       rolePermissions,
+      roles,
       currentUserId: currentUser ? currentUser.id : null,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
@@ -5489,6 +5609,7 @@ function loadAllData() {
     if (data.knowledge) knowledge = data.knowledge;
     if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
     if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
+    if (data.roles) { roles = data.roles; }
     // 恢复计数器
     if (data.nextOrderId) nextOrderId = data.nextOrderId;
     if (data.nextTechId) nextTechId = data.nextTechId;
@@ -5529,7 +5650,7 @@ function exportBackup() {
     exportedAt: new Date().toISOString(),
     orders, technicians, assets, inventory, inventoryTransactions,
     addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-    knowledge, fixedAssetInspections, rolePermissions,
+    knowledge, fixedAssetInspections, rolePermissions, roles,
     nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
     nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId
   };
@@ -5579,6 +5700,7 @@ function importBackup(input) {
       if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
       if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
       if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
+      if (data.roles) { roles = data.roles; }
       // Restore counters
       if (data.nextOrderId) nextOrderId = data.nextOrderId;
       if (data.nextTechId) nextTechId = data.nextTechId;
