@@ -3123,15 +3123,30 @@ function showInspectionCalendar() {
 }
 
 // ============ 二维码生成（手机扫码 → 跳转巡检上传页面） ============
-// 生成扫码跳转的完整 URL
-function assetInspectUrl(code) {
-  return location.origin + location.pathname + '#/m/asset/' + encodeURIComponent(code);
+// 生成扫码跳转的完整 URL（携带设备数据，手机端无需 localStorage）
+function assetInspectUrl(assetOrCode) {
+  // 支持传 code 字符串或完整 asset 对象
+  let a = null;
+  if (typeof assetOrCode === 'string') {
+    a = assets.find(x => x.code === assetOrCode) || fixedAssets.find(x => x.code === assetOrCode);
+  } else {
+    a = assetOrCode;
+  }
+  const code = a ? a.code : (typeof assetOrCode === 'string' ? assetOrCode : '');
+  if (!a) {
+    return location.origin + location.pathname + '#/m/inspect?code=' + encodeURIComponent(code);
+  }
+  // 将设备关键信息编码到 URL，手机扫码后无需 localStorage 即可显示
+  var info = { code:a.code, name:a.name, cat:a.cat||'', loc:a.loc||a.location||'', model:a.model||a.spec||'', date:a.date||'', cycle:a.cycle||'' };
+  var json = JSON.stringify(info);
+  var b64 = btoa(unescape(encodeURIComponent(json)));
+  return location.origin + location.pathname + '#/m/inspect/' + encodeURIComponent(code) + '?d=' + encodeURIComponent(b64);
 }
 
 function showQRCode(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return showFixedAssetQRCode(code);
-  const qrLink = assetInspectUrl(code);
+  const qrLink = assetInspectUrl(a);
   const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   openModal(`📱 设备二维码 — ${a.name}`,
     `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
@@ -3165,7 +3180,7 @@ function showQRCode(code) {
 function printQRLabel(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return;
-  const qrLink = assetInspectUrl(code);
+  const qrLink = assetInspectUrl(a);
   const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   const w = window.open('','_blank','width=600,height=700');
   w.document.write(`
@@ -3202,7 +3217,7 @@ function batchQRPrint() {
   if (items.length === 0) { showToast('没有可生成二维码的设备', 'warning'); return; }
   // Pre-generate all QR data URLs
   const qrMap = {};
-  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a.code), 150, 2); });
+  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a), 150, 2); });
   const w = window.open('','_blank','width=800,height=800');
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量设备二维码</title>
@@ -3235,7 +3250,7 @@ function batchQRPrint() {
 function showFixedAssetQRCode(code) {
   const a = fixedAssets.find(a => a.code === code);
   if (!a) return;
-  const qrLink = assetInspectUrl(code);
+  const qrLink = assetInspectUrl(a);
   const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   openModal(`📱 固定资产二维码 — ${esc(a.name)}`,
     `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
@@ -3268,7 +3283,7 @@ function batchFixedAssetQRPrint() {
   if (items.length === 0) { showToast('没有可生成二维码的固定资产', 'warning'); return; }
   // Pre-generate all QR data URLs
   const qrMap = {};
-  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a.code), 150, 2); });
+  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a), 150, 2); });
   const w = window.open('','_blank','width=800,height=800');
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量固定资产二维码</title>
@@ -5252,6 +5267,7 @@ function saveAllData() {
       orders, technicians, assets, inventory, inventoryTransactions,
       addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
       knowledge, fixedAssetInspections,
+      currentUserId: currentUser ? currentUser.id : null,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
       savedAt: new Date().toISOString(),
@@ -5311,7 +5327,7 @@ function loadAllData() {
     if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
     if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
     if (data.knowledge) knowledge = data.knowledge;
-    if (data.users) { users = data.users; currentUser = users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+    if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
     // 恢复计数器
     if (data.nextOrderId) nextOrderId = data.nextOrderId;
     if (data.nextTechId) nextTechId = data.nextTechId;
@@ -5400,7 +5416,7 @@ function importBackup(input) {
       if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
       if (data.knowledge) knowledge = data.knowledge;
       if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
-      if (data.users) { users = data.users; currentUser = users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+      if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
       // Restore counters
       if (data.nextOrderId) nextOrderId = data.nextOrderId;
       if (data.nextTechId) nextTechId = data.nextTechId;
@@ -6112,14 +6128,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 路由前缀: #/m/asset/{code}
 function handleMobileHashRoute() {
   const hash = location.hash;
-  const match = hash.match(/^#\/m\/asset\/(.+)$/);
-  if (!match) return false;
-  
-  // 先从 localStorage 加载数据（异步 init 之前）
-  loadAllData();
-  const code = decodeURIComponent(match[1]);
-  renderMobileInspectPage(code);
-  return true;
+  // 支持新旧两种格式:
+  // 旧: #/m/asset/CODE
+  // 新: #/m/inspect/CODE?d=BASE64DATA
+  let match = hash.match(/^#\/m\/inspect\/(.+)$/);
+  if (match) {
+    loadAllData();
+    const code = decodeURIComponent(match[1]);
+    // 尝试从 URL 参数 d= 解码设备数据
+    let assetData = null;
+    const dParam = new URLSearchParams(location.search).get('d') || (hash.indexOf('?d=') > -1 ? hash.split('?d=')[1].split('&')[0] : null);
+    if (dParam) {
+      try { assetData = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(dParam))))); } catch(e) {}
+    }
+    renderMobileInspectPage(code, assetData);
+    return true;
+  }
+  match = hash.match(/^#\/m\/asset\/(.+)$/);
+  if (match) {
+    loadAllData();
+    const code = decodeURIComponent(match[1]);
+    renderMobileInspectPage(code, null);
+    return true;
+  }
+  return false;
 }
 
 // 监听 hash 变化（允许在应用中点击链接导航到巡检页）
@@ -6127,12 +6159,45 @@ window.addEventListener('hashchange', () => {
   handleMobileHashRoute();
 });
 
-function renderMobileInspectPage(code) {
-  const a = assets.find(a => a.code === code) || fixedAssets.find(a => a.code === code);
+function renderMobileInspectPage(code, assetData) {
+  // 优先用 localStorage 查设备，其次用 URL 传入的数据
+  let a = assets.find(a => a.code === code) || fixedAssets.find(a => a.code === code);
+  if (!a && assetData) {
+    // 从 URL 参数构造临时设备对象（无需 localStorage）
+    a = {
+      code: assetData.code || code,
+      name: assetData.name || '',
+      cat: assetData.cat || '',
+      loc: assetData.loc || '',
+      model: assetData.model || '',
+      date: assetData.date || '',
+      cycle: assetData.cycle || '',
+      cycleDays: assetData.cycle ? cycleDaysFromType(mapCycleText(assetData.cycle), assetData.cycle) : 0,
+      lastInspection: '',
+      nextInspection: '',
+      status: 'normal',
+      inspectionHistory: []
+    };
+  }
+  
   // 隐藏登录遮罩和主界面
   document.getElementById('loginOverlay').classList.add('hidden');
   const mainEl = document.querySelector('.app-container') || document.querySelector('.main-content') || document.body;
   
+  // 检查是否为工程人员
+  const isEngineer = currentUser && currentUser.role === '工程人员';
+  
+  if (!isEngineer) {
+    // 非工程人员 → 显示乱码页面
+    renderGarbledPage(mainEl, code, a);
+    return;
+  }
+  
+  // 保存设备数据用于提交后重新渲染
+  window._mInspectCode = code;
+  window._mInspectAssetData = a;
+  
+  // ====== 以下是工程人员正常巡检页面 ======
   // 最近的巡检记录
   const history = fixedAssetInspections.filter(r => r.assetCode === code).sort((a,b) => b.time - a.time);
   const lastInspect = history[0];
@@ -6172,12 +6237,12 @@ function renderMobileInspectPage(code) {
     .m-history-time { color:#888; font-size:12px; }
     .m-history-photos { display:flex; gap:4px; margin-top:6px; flex-wrap:wrap; }
     .m-history-photos img { width:48px; height:48px; border-radius:4px; object-fit:cover; cursor:pointer; border:1px solid #eee; }
-    .m-no-login-bar { background:#fff3e0; padding:8px 16px; font-size:12px; color:#e65100; text-align:center; border-bottom:1px solid #ffe0b2; }
+    .m-engineer-bar { background:#e8f5e9; padding:8px 16px; font-size:12px; color:#2e7d32; text-align:center; border-bottom:1px solid #c8e6c9; }
     .m-toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 20px; border-radius:20px; font-size:14px; z-index:9999; animation:mFadeIn 0.3s; }
     @keyframes mFadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
   </style>
   <div class="m-inspect-page">
-    <div class="m-no-login-bar">⚠️ 无需登录 — 巡检上传模式</div>
+    <div class="m-engineer-bar">🔧 工程人员巡检模式 · ${esc(currentUser.name)}</div>
     <div class="m-inspect-header">
       <h2>${a ? esc(a.name) : '未知设备'}</h2>
       <div class="code">${a ? esc(a.code) : code}</div>
@@ -6223,7 +6288,7 @@ function renderMobileInspectPage(code) {
     
     <div class="m-inspect-card">
       <h3>👤 巡检人</h3>
-      <input class="m-input" id="mInspector" placeholder="请输入巡检人姓名" style="min-height:auto;">
+      <input class="m-input" id="mInspector" placeholder="请输入巡检人姓名" style="min-height:auto;" value="${esc(currentUser.name)}">
     </div>
     
     <button class="m-submit-btn" onclick="mSubmitInspection('${code}')">📤 提交巡检记录</button>
@@ -6258,6 +6323,143 @@ function renderMobileInspectPage(code) {
   // 初始化照片数组
   window._mPhotos = [];
   window._mResult = 'normal';
+}
+
+// ============ 非工程人员扫码 → 乱码页面 ============
+function renderGarbledPage(mainEl, code, deviceInfo) {
+  // 保存 code 用于登录后重渲染
+  window._mInspectCode = code;
+  window._mInspectAssetData = deviceInfo;
+  
+  // 生成随机乱码字符串
+  function garbled(len) {
+    const chars = 'ḀḁḂḃḄḅḆḇḈḉḊḋḌḍḎḏḐḑḒḓḔḕḖḗḘḙḚḛḜḝḞḟḠḡḢḣḤḥḦḧḨḩḪḫḬḭḮḯḰḱḲḳḴḵḶḷḸḹḺḻḼḽḾḿṀṁṂṃṄṅṆṇṈṉṊṋṌṍṎṏṐṑṒṓṔṕṖṗṘṙṚṛṜṝṞṟṠṡṢṣṤṥṦṧṨṩṪṫṬṭṮṯṰṱṲṳṴṵṶṷṸṹṺṻṼṽṾṿẀẁẂẃẄẅẆẇẈẉẊẋẌẍẎẏẐẑẒẓẔẕẖẗẘẙẚẛẜẝẞẟẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰựỲỳỴỵỶỷỸỹỺỻỼỽỾỿⱠⱡⱢⱣⱤⱥⱦⱧⱨⱩⱪⱫⱬⱭⱮⱯⱰⱱⱲⱳⱴⱵⱶⱷⱸⱹⱺⱻⱼⱽⱾⱿ';
+    let s = '';
+    for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  // 随机打乱中文
+  function jumbleChinese(str) {
+    if (!str) return garbled(6);
+    const arr = str.split('');
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    // 随机替换部分字符为乱码
+    return arr.map(c => Math.random() < 0.5 ? garbled(1) : c).join('');
+  }
+  
+  const fakeName = deviceInfo ? jumbleChinese(deviceInfo.name) : garbled(8);
+  const fakeCat = deviceInfo ? jumbleChinese(deviceInfo.cat) : garbled(5);
+  const fakeLoc = deviceInfo ? jumbleChinese(deviceInfo.loc) : garbled(7);
+  
+  mainEl.innerHTML = `
+  <style>
+    .m-garbled-page { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif; background:#1a1a2e; min-height:100vh; padding-bottom:40px; color:#aaa; }
+    .m-garbled-header { background:#0f0f23; color:#555; padding:24px 20px 20px; position:relative; border-bottom:1px solid #222; }
+    .m-garbled-header h2 { margin:0; font-size:18px; font-weight:400; font-family:monospace; letter-spacing:2px; }
+    .m-garbled-header .code { font-size:12px; opacity:0.5; margin-top:6px; word-break:break-all; }
+    .m-garbled-card { background:#16162a; margin:12px 16px; border-radius:12px; padding:16px; border:1px solid #1a1a33; }
+    .m-garbled-card h3 { margin:0 0 12px 0; font-size:13px; color:#444; font-family:monospace; }
+    .m-garbled-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #111; font-size:13px; }
+    .m-garbled-label { color:#333; font-family:monospace; }
+    .m-garbled-value { color:#444; font-family:monospace; letter-spacing:1px; }
+    .m-garbled-lock { text-align:center; padding:30px; }
+    .m-garbled-lock .icon { font-size:48px; display:block; margin-bottom:12px; }
+    .m-garbled-lock .msg { font-size:12px; color:#444; font-family:monospace; }
+    .m-garbled-login-link { text-align:center; padding:12px; }
+    .m-garbled-login-link a { color:#333; font-size:11px; text-decoration:none; font-family:monospace; }
+    @keyframes glitch { 0%{opacity:1;} 20%{opacity:0.7;transform:translateX(-2px);} 40%{opacity:1;} 60%{opacity:0.8;transform:translateX(2px);} 80%{opacity:0.9;} 100%{opacity:1;} }
+    .glitch-text { animation: glitch 0.3s infinite; display:inline-block; }
+  </style>
+  <div class="m-garbled-page">
+    <div class="m-garbled-header">
+      <h2 class="glitch-text">${garbled(8)}</h2>
+      <div class="code">${garbled(32)}</div>
+    </div>
+    <div class="m-garbled-card">
+      <h3>▮ ${garbled(6)} ▮▮▮▮</h3>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${fakeCat||garbled(8)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${fakeLoc||garbled(10)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${garbled(7)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${garbled(6)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${garbled(5)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(4)}</span><span class="m-garbled-value">${garbled(6)}</span></div>
+    </div>
+    <div class="m-garbled-card">
+      <div class="m-garbled-lock">
+        <span class="icon">🔒</span>
+        <div class="msg">${garbled(24)}</div>
+        <div class="msg" style="margin-top:8px;">${garbled(18)}</div>
+      </div>
+    </div>
+    <div class="m-garbled-card">
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(5)}</span><span class="m-garbled-value">${garbled(4)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(5)}</span><span class="m-garbled-value">${garbled(4)}</span></div>
+      <div class="m-garbled-row"><span class="m-garbled-label">${garbled(5)}</span><span class="m-garbled-value">${garbled(4)}</span></div>
+    </div>
+    <div class="m-garbled-login-link">
+      <a href="javascript:void(0)" onclick="mShowEngineerLogin()" style="color:#333;font-size:11px;text-decoration:none;font-family:monospace;">${garbled(12)}</a>
+    </div>
+    <div style="text-align:center;padding:20px;color:#222;font-size:10px;font-family:monospace;">
+      ${garbled(36)}
+    </div>
+  </div>
+  <div id="mEngineerLoginOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10001;display:none;align-items:center;justify-content:center;">
+    <div style="background:#1a1a2e;border:1px solid #333;border-radius:16px;padding:24px;width:280px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:12px;">🔧</div>
+      <div style="color:#aaa;font-size:13px;margin-bottom:4px;">工程人员验证</div>
+      <div style="color:#555;font-size:10px;margin-bottom:16px;">仅限工程巡检人员访问</div>
+      <input id="mEngUser" placeholder="用户名" style="width:100%;padding:10px;background:#0f0f23;border:1px solid #333;border-radius:8px;color:#ddd;font-size:14px;margin-bottom:8px;box-sizing:border-box;font-family:inherit;">
+      <input id="mEngPass" type="password" placeholder="密码" style="width:100%;padding:10px;background:#0f0f23;border:1px solid #333;border-radius:8px;color:#ddd;font-size:14px;margin-bottom:16px;box-sizing:border-box;font-family:inherit;">
+      <div style="display:flex;gap:8px;">
+        <button onclick="mHideEngineerLogin()" style="flex:1;padding:10px;background:#333;color:#888;border:none;border-radius:8px;font-size:13px;cursor:pointer;">取消</button>
+        <button onclick="mVerifyEngineer()" style="flex:1;padding:10px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">验证</button>
+      </div>
+      <div id="mEngError" style="color:#f44336;font-size:11px;margin-top:10px;display:none;"></div>
+    </div>
+  </div>
+  `;
+}
+
+// ============ 工程人员登录验证（移动端乱码页） ============
+function mShowEngineerLogin() {
+  const overlay = document.getElementById('mEngineerLoginOverlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+function mHideEngineerLogin() {
+  const overlay = document.getElementById('mEngineerLoginOverlay');
+  if (overlay) overlay.style.display = 'none';
+  const err = document.getElementById('mEngError');
+  if (err) err.style.display = 'none';
+}
+async function mVerifyEngineer() {
+  const username = document.getElementById('mEngUser').value.trim();
+  const password = document.getElementById('mEngPass').value;
+  const errEl = document.getElementById('mEngError');
+  if (!username || !password) {
+    errEl.textContent = '请输入用户名和密码';
+    errEl.style.display = 'block';
+    return;
+  }
+  // 使用 SHA-256 哈希
+  const hash = await sha256(password);
+  // 查找匹配的工程人员
+  const eng = users.find(u => u.name === username && u.role === '工程人员' && u.status === 'active' && u.password === hash);
+  if (!eng) {
+    errEl.textContent = '验证失败，仅限工程人员访问';
+    errEl.style.display = 'block';
+    return;
+  }
+  // 验证成功！设置 currentUser 并直接重新渲染
+  currentUser = eng;
+  saveAllData();
+  const code = window._mInspectCode;
+  const assetData = window._mInspectAssetData;
+  if (code) {
+    renderMobileInspectPage(code, assetData);
+  }
 }
 
 // ============ 手机端交互函数 ============
@@ -6372,7 +6574,7 @@ function mSubmitInspection(code) {
   document.querySelector('#mResultBtns .m-result-btn[data-v="normal"]').classList.add('active');
   
   // 更新巡检历史显示
-  renderMobileInspectPage(code);
+  renderMobileInspectPage(code, window._mInspectAssetData || null);
   
   mToast('✅ 巡检记录已提交！');
 }
