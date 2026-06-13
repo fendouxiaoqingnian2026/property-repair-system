@@ -866,7 +866,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <button class="btn btn-outline btn-sm" onclick="showScrapAssetModal()" style="border-color:#f44336;color:#f44336;">🗑️ 设备报废</button>
           </div>
         </div>
-        <table class="data-table"><thead><tr><th>设备编号</th><th>设备名称</th><th>类别</th><th>位置</th><th>品牌/型号</th><th>安装日期</th><th>维保周期</th><th>状态</th><th>操作</th></tr></thead><tbody id="assetsTable"></tbody></table>
+        <table class="data-table"><thead><tr><th>设备编号</th><th>设备名称</th><th>类别</th><th>位置</th><th>品牌/型号</th><th>安装日期</th><th>维保周期</th><th>最后巡检</th><th>状态</th><th>操作</th></tr></thead><tbody id="assetsTable"></tbody></table>
       </div>
     </div>
 
@@ -1209,6 +1209,10 @@ let orders = [
   { id: 'HSJ-2026-0012', type: '弱电系统', address: 'D栋-2单元-103', contact: '褚女士', phone: '137****9012', priority: '普通', status: 'pending', tech: '', time: '2026-06-08 15:25', desc: '网络接口无信号', dispatchedAt: '', completedAt: '', materials: '', source: 'owner', creator: '客服小张' },
 ];
 let nextOrderId = 13;
+
+// ============ 巡检任务指派 ============
+let inspectionAssignments = [];
+let nextInspAssignId = 1;
 
 let technicians = [
   { id: 1, name: '赵师傅', username: 'zhao', phone: '138****1001', skills: '水电/空调', experience: '8年', hireDate: '2018-03', load: 65, current: 2, max: 5, rating: 4.9, status: 'busy', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
@@ -3073,17 +3077,31 @@ function renderAssets() {
            diffDays === 0 ? ' <span style="font-size:10px;color:var(--warning);">(今日到期)</span>' :
            ` <span style="font-size:10px;color:var(--warning);">(${Math.abs(diffDays)}天后到期)</span>`;
   };
+  // 格式化最后巡检信息（含已巡检标识）
+  const lastInspCell = a => {
+    if (!a.lastInspection) return '<span style="color:var(--gray-400);font-size:12px;">— 未巡检</span>';
+    const lastDate = a.lastInspection;
+    const lastPerson = (a.inspectionHistory && a.inspectionHistory.length > 0) ? a.inspectionHistory[0].operator : '';
+    const count = (a.inspectionHistory || []).length;
+    const isRecent = (new Date(today) - new Date(lastDate)) / 86400000 <= 7;
+    const inspectedTag = isRecent ? ' <span style="background:#c8e6c9;color:#2e7d32;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;">✅已巡检</span>' : '';
+    return '<div>' + lastDate + inspectedTag
+      + (lastPerson ? '<span style="font-size:10px;color:var(--gray-400);display:block;">👤 ' + lastPerson + '</span>' : '')
+      + (count > 0 ? '<span style="font-size:10px;color:var(--gray-400);display:block;">📋 ' + count + '次</span>' : '')
+      + '</div>';
+  };
   document.getElementById('assetsTable').innerHTML = filtered.map(a => `<tr>
     <td><strong>${a.code}</strong></td><td>${a.name}</td><td>${a.cat}</td><td>${a.loc}</td>
     <td>${a.model}</td><td>${a.date}</td>
     <td>${a.cycle}${a.nextInspection?' <span style="font-size:10px;color:var(--gray-400);display:block;">下次:'+a.nextInspection+'</span>':''}</td>
+    <td>${lastInspCell(a)}</td>
     <td>${statusBadge(a.status)}${overDueDays(a)}</td>
     <td style="white-space:nowrap;">
       <button class="btn btn-primary btn-xs" onclick="editAsset('${a.code}')">编辑</button>
       <button class="btn btn-warning btn-xs" style="margin-left:2px;" onclick="showInspectionModal('${a.code}')" title="巡检记录">🔍</button>
       <button class="btn btn-info btn-xs" style="margin-left:2px;" onclick="showQRCode('${a.code}')" title="二维码">📱</button>
       <button class="btn btn-danger btn-xs" style="margin-left:2px;" onclick="deleteAsset('${a.code}')">删除</button>
-    </td></tr>`).join('');
+    </td></tr>`).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--gray-400);padding:40px;">📭 暂无设备数据</td></tr>';
   updateAssetStats();
 }
 
@@ -3276,18 +3294,40 @@ function showInspectionTaskList() {
       todayTasks.push(task);
     }
   });
+
+  // 辅助函数：生成指派状态和按钮
+  function taskAssignHtml(code, name, nextDate) {
+    var assign = inspectionAssignments.find(function(a) { return a.assetCode === code && a.status !== 'completed'; });
+    if (assign) {
+      return '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;">' +
+        '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">✅ 已指派: ' + esc(assign.techName) + '</span>' +
+        '<button onclick="event.stopPropagation();assignInspectionTask(\'' + escAttr(code) + '\',\'' + escAttr(name) + '\',\'' + (nextDate||'') + '\')" style="border:1px solid #1976d2;background:#fff;color:#1976d2;padding:2px 8px;border-radius:10px;cursor:pointer;font-size:11px;">🔄 改派</button>' +
+        '<button onclick="event.stopPropagation();cancelInspectionAssign(\'' + escAttr(code) + '\')" style="border:1px solid #999;background:#fff;color:#666;padding:2px 8px;border-radius:10px;cursor:pointer;font-size:11px;">✕ 撤销</button>' +
+      '</div>';
+    } else {
+      return '<div style="margin-top:6px;">' +
+        '<button onclick="event.stopPropagation();assignInspectionTask(\'' + escAttr(code) + '\',\'' + escAttr(name) + '\',\'' + (nextDate||'') + '\')" style="border:1px solid #1976d2;background:#e3f2fd;color:#1976d2;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;">📤 指派师傅</button>' +
+      '</div>';
+    }
+  }
   
   var html = '<div style="padding:10px 0;">';
   
   // 逾期任务
   if (overdueTasks.length > 0) {
     html += '<div style="background:#ffebee;border:1px solid #ffcdd2;border-radius:8px;padding:12px;margin-bottom:12px;">' +
-      '<div style="font-weight:600;color:#c62828;margin-bottom:8px;font-size:14px;">🚨 逾期未检（' + overdueTasks.length + '台）</div>';
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+        '<span style="font-weight:600;color:#c62828;font-size:14px;">🚨 逾期未检（' + overdueTasks.length + '台）</span>' +
+        '<button onclick="batchAssignOverdue()" style="border:1px solid #c62828;background:#fff;color:#c62828;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;">📤 一键指派</button>' +
+      '</div>';
     overdueTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
     overdueTasks.forEach(function(t) {
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ffcdd2;font-size:13px;">' +
-        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
-        '<span style="color:#c62828;font-weight:600;white-space:nowrap;font-size:12px;">逾期 ' + Math.abs(t.diffDays) + '天</span>' +
+      html += '<div style="padding:8px 0;border-bottom:1px solid #ffcdd2;font-size:13px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+          '<div style="flex:1;"><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+          '<span style="color:#c62828;font-weight:600;white-space:nowrap;font-size:12px;margin-left:8px;">逾期 ' + Math.abs(t.diffDays) + '天</span>' +
+        '</div>' +
+        taskAssignHtml(t.code, t.name, t.nextInspection) +
       '</div>';
     });
     html += '</div>';
@@ -3296,12 +3336,18 @@ function showInspectionTaskList() {
   // 待巡检（7天内）
   if (pendingTasks.length > 0) {
     html += '<div style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:12px;margin-bottom:12px;">' +
-      '<div style="font-weight:600;color:#e65100;margin-bottom:8px;font-size:14px;">🔔 待巡检（7天内，' + pendingTasks.length + '台）</div>';
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+        '<span style="font-weight:600;color:#e65100;font-size:14px;">🔔 待巡检（7天内，' + pendingTasks.length + '台）</span>' +
+        '<button onclick="batchAssignPending()" style="border:1px solid #e65100;background:#fff;color:#e65100;padding:3px 10px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;">📤 一键指派</button>' +
+      '</div>';
     pendingTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
     pendingTasks.forEach(function(t) {
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ffe0b2;font-size:13px;">' +
-        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
-        '<span style="color:#e65100;font-weight:600;white-space:nowrap;font-size:12px;">' + (t.diffDays === 0 ? '今天' : t.diffDays + '天后') + '</span>' +
+      html += '<div style="padding:8px 0;border-bottom:1px solid #ffe0b2;font-size:13px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+          '<div style="flex:1;"><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+          '<span style="color:#e65100;font-weight:600;white-space:nowrap;font-size:12px;margin-left:8px;">' + (t.diffDays === 0 ? '今天' : t.diffDays + '天后') + '</span>' +
+        '</div>' +
+        taskAssignHtml(t.code, t.name, t.nextInspection) +
       '</div>';
     });
     html += '</div>';
@@ -3313,9 +3359,12 @@ function showInspectionTaskList() {
       '<div style="font-weight:600;color:#2e7d32;margin-bottom:8px;font-size:14px;">📅 近期巡检（30天内，' + todayTasks.length + '台）</div>';
     todayTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
     todayTasks.forEach(function(t) {
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #c8e6c9;font-size:13px;">' +
-        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
-        '<span style="color:#2e7d32;font-weight:500;white-space:nowrap;font-size:12px;">' + t.diffDays + '天后</span>' +
+      html += '<div style="padding:6px 0;border-bottom:1px solid #c8e6c9;font-size:13px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+          '<div style="flex:1;"><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+          '<span style="color:#2e7d32;font-weight:500;white-space:nowrap;font-size:12px;margin-left:8px;">' + t.diffDays + '天后</span>' +
+        '</div>' +
+        taskAssignHtml(t.code, t.name, t.nextInspection) +
       '</div>';
     });
     html += '</div>';
@@ -3328,6 +3377,161 @@ function showInspectionTaskList() {
   html += '</div>';
   
   openModal('📋 巡检任务清单', html, '<button class="btn btn-primary" onclick="closeModal()">关闭</button>');
+}
+
+// ============ 指派巡检任务 ============
+function assignInspectionTask(assetCode, assetName, nextInspection) {
+  var available = technicians.filter(function(t) { return t.status === 'available' || t.status === 'busy'; });
+  // 查找现有指派
+  var existingAssign = inspectionAssignments.find(function(a) { return a.assetCode === assetCode && a.status !== 'completed'; });
+  
+  openModal('📬 指派巡检任务 — ' + esc(assetCode),
+    '<div style="padding:8px 0;">' +
+      '<div style="padding:10px;background:#f5f7fa;border-radius:8px;margin-bottom:16px;font-size:13px;">' +
+        '<div><strong>设备：</strong>' + esc(assetCode) + ' ' + esc(assetName) + '</div>' +
+        '<div style="margin-top:4px;"><strong>下次巡检：</strong>' + (nextInspection || '—') + '</div>' +
+        (existingAssign ? '<div style="margin-top:4px;color:#e65100;">⚠️ 当前已指派: ' + esc(existingAssign.techName) + '，选择新师傅将覆盖</div>' : '') +
+      '</div>' +
+      '<div style="max-height:300px;overflow-y:auto;">' +
+        (available.length === 0 ? '<p style="text-align:center;color:var(--danger);padding:20px;">⚠️ 暂无可用维修师傅</p>' :
+          available.map(function(t) {
+            return '<div class="tech-card" onclick="confirmInspectionAssign(\'' + escAttr(assetCode) + '\',\'' + escAttr(assetName) + '\',\'' + escAttr(nextInspection) + '\',' + t.id + ')" style="margin-bottom:8px;cursor:pointer;">' +
+              '<div class="tech-avatar">' + esc(t.name[0]) + '</div>' +
+              '<div class="tech-info"><div class="tech-name">' + esc(t.name) + ' ⭐' + t.rating + '</div><div class="tech-skills">🔧 ' + esc(t.skills) + ' | ⏱ ' + esc(t.experience) + ' | 负载 ' + t.current + '/' + t.max + '</div></div>' +
+              '<button class="btn btn-primary btn-sm">指派</button>' +
+            '</div>';
+          }).join('')) +
+      '</div>' +
+    '</div>',
+    '<button class="btn btn-secondary" onclick="closeModal()">取消</button>');
+}
+
+function confirmInspectionAssign(assetCode, assetName, nextInspection, techId) {
+  var t = technicians.find(function(t) { return t.id === techId; });
+  if (!t) { showToast('⚠️ 师傅未找到', 'error'); return; }
+  
+  var timeStr = new Date().toISOString().replace('T',' ').substring(0,16);
+  
+  // 先撤销已有未完成的指派
+  inspectionAssignments = inspectionAssignments.filter(function(a) {
+    return !(a.assetCode === assetCode && a.status !== 'completed');
+  });
+  
+  // 创建新指派
+  var id = 'IA-' + String(nextInspAssignId).padStart(4,'0');
+  inspectionAssignments.unshift({
+    id: id,
+    assetCode: assetCode,
+    assetName: assetName,
+    techId: t.id,
+    techName: t.name,
+    assignedAt: timeStr,
+    dueDate: nextInspection || '',
+    status: 'pending'
+  });
+  nextInspAssignId++;
+  
+  closeModal();
+  saveAllData();
+  // 重新渲染任务清单
+  showInspectionTaskList();
+  showToast('✅ 巡检任务 ' + esc(assetName) + ' 已指派给 ' + esc(t.name), 'success');
+}
+
+function cancelInspectionAssign(assetCode) {
+  var assign = inspectionAssignments.find(function(a) { return a.assetCode === assetCode && a.status !== 'completed'; });
+  if (!assign) { showToast('⚠️ 该设备无进行中的指派', 'error'); return; }
+  if (!confirm('确定撤销「' + assign.assetName + '」指派给 ' + assign.techName + ' 的任务吗？')) return;
+  assign.status = 'cancelled';
+  saveAllData();
+  showInspectionTaskList();
+  showToast('✅ 已撤销 ' + esc(assign.assetName) + ' 的巡检指派', 'success');
+}
+
+// ============ 批量指派 ============
+function batchAssignOverdue() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var overdueCodes = [];
+  assets.forEach(function(a) {
+    if (a.status === 'scrapped' || a.status === 'maintenance') return;
+    if (!a.nextInspection) return;
+    var next = new Date(a.nextInspection); next.setHours(0,0,0,0);
+    var diffDays = Math.ceil((next.getTime() - today.getTime()) / (1000*60*60*24));
+    if (diffDays < 0) overdueCodes.push({code: a.code, name: a.name, due: a.nextInspection});
+  });
+  if (overdueCodes.length === 0) { showToast('⚠️ 暂无逾期任务', 'error'); return; }
+  batchAssignTaskGroup('逾期未检', overdueCodes);
+}
+
+function batchAssignPending() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var pendingCodes = [];
+  assets.forEach(function(a) {
+    if (a.status === 'scrapped' || a.status === 'maintenance') return;
+    if (!a.nextInspection) return;
+    var next = new Date(a.nextInspection); next.setHours(0,0,0,0);
+    var diffDays = Math.ceil((next.getTime() - today.getTime()) / (1000*60*60*24));
+    if (diffDays >= 0 && diffDays <= 7) pendingCodes.push({code: a.code, name: a.name, due: a.nextInspection});
+  });
+  if (pendingCodes.length === 0) { showToast('⚠️ 暂无待巡检任务', 'error'); return; }
+  batchAssignTaskGroup('待巡检', pendingCodes);
+}
+
+function batchAssignTaskGroup(groupName, tasks) {
+  var available = technicians.filter(function(t) { return t.status === 'available' || t.status === 'busy'; });
+  if (available.length === 0) { showToast('⚠️ 暂无可用维修师傅', 'error'); return; }
+  
+  var html = '<div style="padding:8px 0;">' +
+    '<div style="padding:10px;background:#f5f7fa;border-radius:8px;margin-bottom:16px;font-size:13px;">' +
+      '<strong>' + esc(groupName) + ' — ' + tasks.length + '台设备</strong>' +
+      '<div style="margin-top:4px;color:#888;">' + tasks.map(function(t){return esc(t.code)+' '+esc(t.name);}).join('、') + '</div>' +
+    '</div>' +
+    '<p style="font-size:13px;color:#666;margin-bottom:8px;">选择一个维修师傅，将所有 ' + tasks.length + ' 台设备指派给他：</p>' +
+    '<div style="max-height:300px;overflow-y:auto;">' +
+      available.map(function(t) {
+        return '<div class="tech-card" onclick="confirmBatchAssign(' + JSON.stringify(tasks.map(function(tk){return {code:tk.code,name:tk.name,due:tk.due};})) + ',' + t.id + ')" style="margin-bottom:8px;cursor:pointer;">' +
+          '<div class="tech-avatar">' + esc(t.name[0]) + '</div>' +
+          '<div class="tech-info"><div class="tech-name">' + esc(t.name) + ' ⭐' + t.rating + '</div><div class="tech-skills">🔧 ' + esc(t.skills) + ' | ⏱ ' + esc(t.experience) + ' | 负载 ' + t.current + '/' + t.max + '</div></div>' +
+          '<button class="btn btn-primary btn-sm">批量指派</button>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+  '</div>';
+  
+  openModal('📬 批量指派 — ' + esc(groupName) + '（' + tasks.length + '台）', html, '<button class="btn btn-secondary" onclick="closeModal()">取消</button>');
+}
+
+function confirmBatchAssign(tasks, techId) {
+  var t = technicians.find(function(t) { return t.id === techId; });
+  if (!t) { showToast('⚠️ 师傅未找到', 'error'); return; }
+  
+  var timeStr = new Date().toISOString().replace('T',' ').substring(0,16);
+  var assigned = 0;
+  
+  tasks.forEach(function(task) {
+    // 撤销已有指派
+    inspectionAssignments = inspectionAssignments.filter(function(a) {
+      return !(a.assetCode === task.code && a.status !== 'completed');
+    });
+    var id = 'IA-' + String(nextInspAssignId).padStart(4,'0');
+    inspectionAssignments.unshift({
+      id: id,
+      assetCode: task.code,
+      assetName: task.name,
+      techId: t.id,
+      techName: t.name,
+      assignedAt: timeStr,
+      dueDate: task.due || '',
+      status: 'pending'
+    });
+    nextInspAssignId++;
+    assigned++;
+  });
+  
+  closeModal();
+  saveAllData();
+  showInspectionTaskList();
+  showToast('✅ 已批量指派 ' + assigned + ' 台设备巡检任务给 ' + esc(t.name), 'success');
 }
 
 function editAsset(code) { showAssetModal(code); }
@@ -3403,6 +3607,13 @@ function recordInspection(code) {
     else if (result === '需注意') a.status = 'pending_inspection';
   } else {
     a.status = document.getElementById('inspStatusUpdate').value;
+  }
+  // 自动完成巡检指派
+  var pendingAs = inspectionAssignments.find(function(as) { return as.assetCode === code && as.status === 'pending'; });
+  if (pendingAs) {
+    pendingAs.status = 'completed';
+    pendingAs.completedAt = new Date().toISOString().replace('T',' ').substring(0,16);
+    pendingAs.completedBy = operator;
   }
   closeModal(); refreshAll();
   showToast(`✅ ${a.name} 巡检已记录（${result}）`, 'success');
@@ -5546,19 +5757,25 @@ function updateInspectionDashboardStats() {
   const pending = assets.filter(a => a.status === 'pending_inspection' && a.status !== 'scrapped').length;
   const total = assets.filter(a => a.status !== 'scrapped').length;
   
-  // 本月巡检完成数（从 inspectionHistory 和 fixedAssetInspections 统计）
-  const now = new Date();
-  const thisMonthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  let inspDone = 0;
-  assets.forEach(a => {
+  // 本月巡检完成数（从 inspectionHistory 和 fixedAssetInspections 去重统计）
+  var now = new Date();
+  var thisMonthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  var inspSet = new Set();
+  assets.forEach(function(a) {
     if (a.inspectionHistory) {
-      inspDone += a.inspectionHistory.filter(h => h.date && h.date.startsWith(thisMonthStr)).length;
+      a.inspectionHistory.forEach(function(h) {
+        if (h.date && h.date.startsWith(thisMonthStr)) inspSet.add(a.code + '|' + h.date);
+      });
     }
   });
-  inspDone += fixedAssetInspections.filter(r => {
-    const d = new Date(r.time);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  }).length;
+  fixedAssetInspections.forEach(function(r) {
+    var d = new Date(r.time);
+    if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) {
+      var ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      inspSet.add(r.assetCode + '|' + ds);
+    }
+  });
+  var inspDone = inspSet.size;
   
   if (elOverdue) elOverdue.textContent = overdue;
   if (elPending) elPending.textContent = pending;
@@ -5886,8 +6103,52 @@ function recalcAllAssetStatuses() {
   });
 }
 
+// 从 fixedAssetInspections 同步 lastInspection/nextInspection/inspectionHistory 到资产对象
+function syncAllAssetInspections() {
+  assets.forEach(function(a) {
+    // 收集该设备的所有巡检日期
+    var inspDates = [];
+    if (a.inspectionHistory && a.inspectionHistory.length > 0) {
+      a.inspectionHistory.forEach(function(h) { if (h.date) inspDates.push(h.date); });
+    }
+    fixedAssetInspections.filter(function(r) { return r.assetCode === a.code && r.time; }).forEach(function(r) {
+      var d = new Date(r.time);
+      inspDates.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    });
+    inspDates = inspDates.filter(function(v,i,arr) { return arr.indexOf(v) === i; }).sort().reverse();
+    
+    // 同步上次巡检日期（取最新）
+    if (inspDates.length > 0) {
+      a.lastInspection = inspDates[0];
+    }
+    // 下次巡检
+    if ((!a.nextInspection) && a.lastInspection && a.cycleDays) {
+      var last = new Date(a.lastInspection);
+      var next = new Date(last.getTime() + a.cycleDays * 24 * 60 * 60 * 1000);
+      a.nextInspection = next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0') + '-' + String(next.getDate()).padStart(2,'0');
+    }
+    // 同步 inspectionHistory
+    if (!a.inspectionHistory) a.inspectionHistory = [];
+    fixedAssetInspections.filter(function(r) { return r.assetCode === a.code; }).forEach(function(r) {
+      var rd = new Date(r.time);
+      var rds = rd.getFullYear() + '-' + String(rd.getMonth()+1).padStart(2,'0') + '-' + String(rd.getDate()).padStart(2,'0');
+      var exists = a.inspectionHistory.find(function(h) { return h.date === rds && h.operator === r.inspector; });
+      if (!exists) {
+        a.inspectionHistory.push({
+          date: rds,
+          result: r.result === 'normal' ? '正常' : r.result === 'damaged' ? '需维修' : '需报废',
+          operator: r.inspector || '',
+          notes: r.notes || '',
+          photos: r.photos || []
+        });
+      }
+    });
+  });
+}
+
 function refreshAll() {
   recalcAllAssetStatuses(); // 全局自动计算设备状态
+  syncAllAssetInspections(); // 从巡检记录同步 lastInspection/nextInspection
   renderRecentOrders();
   filterOrders();
   renderDispatchPage();
@@ -5915,6 +6176,8 @@ function escapeHtml(str) {
 }
 // HTML 实体编码（不创建 DOM 元素，纯字符串版本，用于模板字面量中少量文本）
 function esc(str) { return escapeHtml(str); }
+// HTML属性转义（用于 onclick 等属性中的单引号）
+function escAttr(str) { return escapeHtml(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
 // ============ LOCALSTORAGE PERSISTENCE ============
 const STORAGE_KEY = 'smartproperty_data_v2';
@@ -5924,12 +6187,12 @@ function saveAllData() {
     const data = {
       orders, technicians, assets, inventory, inventoryTransactions,
       addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-      knowledge, fixedAssetInspections,
+      knowledge, fixedAssetInspections, inspectionAssignments,
       rolePermissions,
       roles,
       currentUserId: currentUser ? currentUser.id : null,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
-      nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
+      nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId, nextInspAssignId,
       savedAt: new Date().toISOString(),
       _saveCount: ((JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'))._saveCount || 0) + 1
     };
@@ -6005,6 +6268,8 @@ function loadAllData() {
     if (data.nextFacId) nextFacId = data.nextFacId;
     if (data.nextUserId) nextUserId = data.nextUserId;
     if (data.nextKbId) nextKbId = data.nextKbId;
+    if (data.inspectionAssignments) inspectionAssignments = data.inspectionAssignments;
+    if (data.nextInspAssignId) nextInspAssignId = data.nextInspAssignId;
     return true;
   } catch(e) { return false; }
 }
@@ -6020,7 +6285,7 @@ function updateBackupStats() {
   document.getElementById('bkOrders').textContent = orders.length;
   document.getElementById('bkAssets').textContent = assets.length + fixedAssets.length;
   document.getElementById('bkInventory').textContent = inventory.length;
-  document.getElementById('bkOther').textContent = addresses.length + zones.length + owners.length + technicians.length + users.length + repairTypes.length + assetCategories.length + fixedAssetCategories.length;
+  document.getElementById('bkOther').textContent = addresses.length + zones.length + owners.length + technicians.length + users.length + repairTypes.length + assetCategories.length + fixedAssetCategories.length + inspectionAssignments.length;
 }
 
 function exportBackup() {
@@ -6030,9 +6295,9 @@ function exportBackup() {
     exportedAt: new Date().toISOString(),
     orders, technicians, assets, inventory, inventoryTransactions,
     addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-    knowledge, fixedAssetInspections, rolePermissions, roles,
+    knowledge, fixedAssetInspections, inspectionAssignments, rolePermissions, roles,
     nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
-    nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId
+    nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId, nextInspAssignId
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -6078,6 +6343,7 @@ function importBackup(input) {
       if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
       if (data.knowledge) knowledge = data.knowledge;
       if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
+      if (data.inspectionAssignments) inspectionAssignments = data.inspectionAssignments;
       if (data.users) { users = data.users; currentUser = resolveCurrentUser(data.currentUserId); }
       if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
       if (data.roles) { roles = data.roles; }
@@ -6096,6 +6362,7 @@ function importBackup(input) {
       if (data.nextFacId) nextFacId = data.nextFacId;
       if (data.nextUserId) nextUserId = data.nextUserId;
       if (data.nextKbId) nextKbId = data.nextKbId;
+      if (data.nextInspAssignId) nextInspAssignId = data.nextInspAssignId;
       // Rebuild dropdowns
       populateRepairTypeDropdowns();
       populateAssetCatDropdowns();
@@ -6391,6 +6658,15 @@ async function handleLogin() {
   drawPerfChart(); drawHeatmapChart(); drawSatisfactionChart();
   resetSessionTimer(); // 启动会话超时计时器
   saveAllData(); // 如果进行了密码迁移，保存到 localStorage
+
+  // 🔗 登录后返回原扫码页面（扫码访问场景）
+  const _returnTo = sessionStorage.getItem('_returnToHash');
+  if (_returnTo) {
+    sessionStorage.removeItem('_returnToHash');
+    location.hash = _returnTo;
+    // 立即同步调用路由处理，避免画面闪烁
+    if (typeof handleMobileHashRoute === 'function') handleMobileHashRoute();
+  }
 }
 
 // 记录失败尝试
@@ -6903,15 +7179,26 @@ function handleMobileHashRoute() {
   const hash = location.hash;
   // 移动端首页 — 设备搜索/浏览
   if (hash === '#/m' || hash === '#/m/' || hash.match(/^#\/m(\?.*)?$/)) {
+    if (!currentUser) {
+      // 未登录：保存返回哈希，展示登录页
+      sessionStorage.setItem('_returnToHash', hash);
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      return true;
+    }
     loadAllData();
     renderMobileHomePage();
     return true;
   }
   // 巡检页面路由:
-  // 旧: #/m/asset/CODE
   // 新: #/m/inspect/CODE?d=BASE64DATA
   let match = hash.match(/^#\/m\/inspect\/(.+)$/);
   if (match) {
+    // 🔒 未登录：保存返回哈希，展示登录页，不渲染巡检页
+    if (!currentUser) {
+      sessionStorage.setItem('_returnToHash', hash);
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      return true;
+    }
     loadAllData();
     const code = decodeURIComponent(match[1]);
     // 尝试从 URL 参数 d= 解码设备数据
@@ -6925,6 +7212,11 @@ function handleMobileHashRoute() {
   }
   match = hash.match(/^#\/m\/asset\/(.+)$/);
   if (match) {
+    if (!currentUser) {
+      sessionStorage.setItem('_returnToHash', hash);
+      document.getElementById('loginOverlay').classList.remove('hidden');
+      return true;
+    }
     loadAllData();
     const code = decodeURIComponent(match[1]);
     renderMobileInspectPage(code, null);
@@ -7013,21 +7305,39 @@ function renderMobileHomePage() {
 
       var url = '#/m/inspect/' + encodeURIComponent(a.code) + '?d=' + encodeURIComponent(b64);
       var nextInfo = a.nextInspection
-        ? '<span style="font-size:11px;color:#888;">📅 下次巡检: ' + a.nextInspection + '</span>'
+        ? '<span style="font-size:11px;color:#888;">📅 下次: ' + a.nextInspection + '</span>'
         : '';
-      var lastInfo = a.lastInspection
-        ? '<span style="font-size:11px;color:#888;"> · 上次: ' + a.lastInspection + '</span>'
-        : '';
+
+      // 增强巡检记录显示：最近巡检、巡检人、巡检次数、已巡检标识
+      var inspHistory = a.inspectionHistory || [];
+      var lastInspHtml = '';
+      if (a.lastInspection && inspHistory.length > 0) {
+        var lastRec = inspHistory[0];
+        var lastPerson = lastRec.operator || '';
+        var inspCount = inspHistory.length;
+        var isRecent = (today.getTime() - new Date(a.lastInspection).getTime()) / 86400000 <= 7;
+        var badge = isRecent
+          ? '<span style="background:#c8e6c9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap;">✅ 已巡检</span>'
+          : '<span style="background:#e8eaf6;color:#3949ab;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;">📋 ' + inspCount + '次</span>';
+        lastInspHtml = '<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+          + '<span style="font-size:11px;color:#555;">🕐 ' + a.lastInspection + '</span>'
+          + (lastPerson ? '<span style="font-size:11px;color:#777;">👤 ' + lastPerson + '</span>' : '')
+          + badge
+          + '</div>';
+      } else if (a.lastInspection) {
+        lastInspHtml = '<div style="margin-top:6px;font-size:11px;color:#888;">🕐 上次: ' + a.lastInspection + '</div>';
+      }
 
       html += '<a href="' + url + '" style="display:block;background:#fff;margin:0 16px 8px;border-radius:10px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,0.06);text-decoration:none;color:inherit;transition:transform 0.15s;border-left:4px solid ' + (a.status === 'overdue' ? '#f44336' : a.status === 'pending_inspection' ? '#ff9800' : '#4caf50') + ';">'
         + '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
         + '<div style="flex:1;min-width:0;">'
         + '<div style="font-weight:600;font-size:15px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escFn(a.name) + '</div>'
         + '<div style="font-size:12px;color:#888;margin-top:2px;">' + escFn(a.code) + ' · ' + escFn(a.loc) + '</div>'
-        + '<div style="margin-top:4px;">' + nextInfo + lastInfo + '</div>'
+        + '<div style="margin-top:4px;">' + nextInfo + '</div>'
         + '</div>'
         + '<div style="flex-shrink:0;margin-left:8px;">' + (statusLabels[a.status] || '<span style="font-size:11px;color:#999;">未知</span>') + '</div>'
         + '</div>'
+        + lastInspHtml
         + '<div style="margin-top:6px;display:flex;justify-content:flex-end;font-size:12px;color:#1a73e8;font-weight:500;">📋 巡检 &rarr;</div>'
         + '</a>';
     });
@@ -7095,6 +7405,43 @@ function renderMobileHomePage() {
     + '</div>'
     + '<div class="m-result-bar"><span id="mResultCount">' + totalCount + ' 台</span><span style="font-size:11px;color:#1a73e8;">📱 扫码或点击设备巡检</span></div>'
     + '<div class="m-device-list" id="mDeviceList"></div>'
+
+    // === 工程人员：指派给我的巡检任务 ===
+    + (currentUser && currentUser.role === '工程人员' 
+      ? (function() {
+          var myTasks = inspectionAssignments.filter(function(a) { 
+            return a.techName === currentUser.name && a.status === 'pending'; 
+          });
+          if (myTasks.length === 0) return '';
+          return '<div style="margin:12px 16px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+            + '<span style="font-weight:600;font-size:14px;color:#333;">📬 我的巡检任务（' + myTasks.length + '）</span>'
+            + '</div>'
+            + '<div style="background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);overflow:hidden;">'
+            + myTasks.map(function(t) {
+                var asset = assets.find(function(a) { return a.code === t.assetCode; });
+                var b64 = '';
+                try {
+                  var data = { code: t.assetCode, name: t.assetName, cat: (asset&&asset.cat)||'', loc: (asset&&asset.loc)||'', model: (asset&&asset.model)||'', date: (asset&&asset.date)||'', cycle: (asset&&asset.cycle)||'' };
+                  b64 = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+                } catch(e) {}
+                var url = '#/m/inspect/' + encodeURIComponent(t.assetCode) + '?d=' + encodeURIComponent(b64);
+                var dueBadge = t.dueDate ? '<span style="font-size:11px;color:#e65100;">📅 ' + t.dueDate + '</span>' : '';
+                var overdue = t.dueDate && new Date(t.dueDate) < new Date();
+                return '<a href="' + url + '" style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #f0f0f0;text-decoration:none;color:inherit;' + (overdue?'background:#fff8e1;':'') + '">'
+                  + '<div style="flex:1;min-width:0;">'
+                  + '<div style="font-weight:600;font-size:14px;color:#333;">' + escFn(t.assetCode) + ' ' + escFn(t.assetName) + '</div>'
+                  + '<div style="font-size:12px;color:#888;margin-top:2px;">指派: ' + escFn(t.assignedAt) + (t.dueDate ? ' · 截止: ' + t.dueDate : '') + '</div>'
+                  + '</div>'
+                  + '<div style="flex-shrink:0;margin-left:8px;text-align:right;">'
+                  + (overdue ? '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🚨 逾期</span>' : '<span style="background:#e3f2fd;color:#1976d2;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">📋 巡检</span>')
+                  + '</div>'
+                  + '</a>';
+              }).join('')
+            + '</div>'
+            + '</div>';
+        })()
+      : '')
     + '</div>'
     + '<div class="m-bottom-nav">'
     + '<a href="#/m/" class="active"><span class="icon">📋</span>设备列表</a>'
@@ -7151,6 +7498,48 @@ function renderMobileInspectPage(code, assetData) {
   // 隐藏登录遮罩和主界面
   document.getElementById('loginOverlay').classList.add('hidden');
   const mainEl = document.querySelector('.app-container') || document.querySelector('.main-content') || document.body;
+  
+  // ====== 同步巡检数据：从 globalInspections + asset.inspectionHistory 推导 lastInspection/nextInspection ======
+  if (a) {
+    // 收集所有巡检记录日期
+    var inspDates = [];
+    if (a.inspectionHistory && a.inspectionHistory.length > 0) {
+      a.inspectionHistory.forEach(function(h) { if (h.date) inspDates.push(h.date); });
+    }
+    fixedAssetInspections.filter(function(r) { return r.assetCode === code && r.time; }).forEach(function(r) {
+      var d = new Date(r.time);
+      inspDates.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    });
+    // 去重排序，最新的在前
+    inspDates = inspDates.filter(function(v,i,arr) { return arr.indexOf(v) === i; }).sort().reverse();
+    
+    // 上次巡检（始终取最新日期）
+    if (inspDates.length > 0) {
+      a.lastInspection = inspDates[0];
+    }
+    // 下次巡检（基于上次巡检+周期）
+    if ((!a.nextInspection) && a.lastInspection && a.cycleDays) {
+      var last = new Date(a.lastInspection);
+      var next = new Date(last.getTime() + a.cycleDays * 24 * 60 * 60 * 1000);
+      a.nextInspection = next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0') + '-' + String(next.getDate()).padStart(2,'0');
+    }
+    // 同步 inspectionHistory（从 fixedAssetInspections 补充）
+    if (!a.inspectionHistory) a.inspectionHistory = [];
+    fixedAssetInspections.filter(function(r) { return r.assetCode === code; }).forEach(function(r) {
+      var rd = new Date(r.time);
+      var rds = rd.getFullYear() + '-' + String(rd.getMonth()+1).padStart(2,'0') + '-' + String(rd.getDate()).padStart(2,'0');
+      var exists = a.inspectionHistory.find(function(h) { return h.date === rds && h.operator === r.inspector; });
+      if (!exists) {
+        a.inspectionHistory.push({
+          date: rds,
+          result: r.result === 'normal' ? '正常' : r.result === 'damaged' ? '需维修' : '需报废',
+          operator: r.inspector || '',
+          notes: r.notes || '',
+          photos: r.photos || []
+        });
+      }
+    });
+  }
   
   // 保存设备数据用于提交后重新渲染
   window._mInspectCode = code;
@@ -7212,6 +7601,7 @@ function renderMobileInspectPage(code, assetData) {
       ${isEngineer ? '🔧 工程人员巡检模式 · ' + esc(currentUser.name) : '⚠️ 需要验证工程身份 · <a href="javascript:void(0)" onclick="mShowEngVerifyModal()" style="color:#1a73e8;text-decoration:underline;font-weight:600;">点击验证</a>'}
     </div>
     <div class="m-inspect-header">
+      <a href="#/m/" style="display:inline-block;margin-bottom:8px;color:rgba(255,255,255,0.8);text-decoration:none;font-size:13px;background:rgba(255,255,255,0.15);padding:4px 12px;border-radius:14px;">← 返回设备列表</a>
       <h2>${a ? esc(a.name) : '未知设备'}</h2>
       <div class="code">${a ? esc(a.code) : code}</div>
     </div>
@@ -7676,6 +8066,23 @@ function mSubmitInspection(code) {
       const next = new Date(now.getTime() + a.cycleDays * 24 * 60 * 60 * 1000);
       a.nextInspection = next.getFullYear() + '-' + String(next.getMonth()+1).padStart(2,'0') + '-' + String(next.getDate()).padStart(2,'0');
     }
+    // 同步写入资产的巡检历史
+    if (!a.inspectionHistory) a.inspectionHistory = [];
+    a.inspectionHistory.push({
+      date: dateStr,
+      result: result === 'normal' ? '正常' : result === 'damaged' ? '需维修' : '需报废',
+      operator: inspector,
+      notes: notes,
+      photos: photos
+    });
+  }
+  
+  // 自动完成巡检指派（如果有对应的指派任务）
+  var pendingAssign = inspectionAssignments.find(function(as) { return as.assetCode === code && as.status === 'pending'; });
+  if (pendingAssign) {
+    pendingAssign.status = 'completed';
+    pendingAssign.completedAt = new Date().toISOString().replace('T',' ').substring(0,16);
+    pendingAssign.completedBy = inspector;
   }
   
   saveAllData();
@@ -7696,10 +8103,10 @@ function mSubmitInspection(code) {
   // 更新巡检历史显示
   renderMobileInspectPage(code, window._mInspectAssetData || null);
   
-  // 详细成功提示
+  // 显示提交成功提示，含返回设备列表链接
   var msgParts = ['设备: ' + code, '结果: ' + resultLabel];
   if (photos.length > 0) msgParts.push('照片: ' + photos.length + '张');
-  mToast('✅ 巡检已提交！' + msgParts.join(' | '));
+  mToast('✅ 巡检已提交！' + msgParts.join(' | ') + '<br><a href="#/m/" style="color:#81c784;text-decoration:underline;font-size:12px;">📋 返回设备列表查看</a>');
 }
 
 // ============ 移动端巡检页面 END ============
