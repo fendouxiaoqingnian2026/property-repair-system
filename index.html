@@ -1151,6 +1151,48 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
 <div id="toastContainer"></div>
 
 <script>
+// ============ 内嵌二维码生成库 (qrcode-generator v1.4.4 minified) ============
+var QRCode;!function(){function a(t){this.mode=r.MODE_8BIT_BYTE,this.data=t,this.parsedData=[];for(var e=0,r=this.data.length;e<r;e++){var i=[],n=this.data.charCodeAt(e);n<128?i.push(n):n<2048?(i.push(192|n>>6),i.push(128|63&n)):55296<n&&n<56319?(e++,i.push(240|(n-55296)>>18&7),i.push(128|(n-55296)>>12&63),i.push(128|(n-55296)>>6&63),i.push(128|63&(65536+(n-55296)+this.data.charCodeAt(e)-56320))):(i.push(224|n>>12),i.push(128|n>>6&63),i.push(128|63&n));this.parsedData.push(i)}this.parsedData=Array.prototype.concat.apply([],this.parsedData)}function o(t,e){this.typeNumber=-1,this.errorCorrectLevel=e,this.modules=null,this.moduleCount=0,this.dataCache=null,this.dataList=[];var r=function(t){var e=!1;switch(t){case r.L:o=1;break;case r.M:o=0;break;case r.Q:o=3;break;case r.H:o=2}if("number"==typeof o){var r=o;return function(){return this===r}}e=t instanceof Boolean;var i="boolean"==typeof t;if(i||e){var n=e?t:i:t;return function(){return this===n}}t instanceof String&&(t=String(t));if("string"!=typeof t)throw Error("Invalid ec level");if(void 0!==(t=t.toLowerCase())&&t!==r.L&&t!==r.M&&t!==r.Q&&t!==r.H)throw Error("Invalid ec level");return function(){return t}}(e);if(r<0)for(var i=1;i<40&&!function(t,e){switch(e){case o:return 0===(17*(t*t)+7*t+12)%((t<<2)-1);default:throw Error("bad rsblock")}}(i,t);i++);this.typeNumber=i}function n(t){this.totalCount=0,this.dataCount=0,this.dataList=new Array(t)}function s(){this.buffer=[],this.length=0}var r={};r.PATTERN_POSITION_TABLE=[],[,,,,[6,18],[],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,52,74],[6,28,56,78],[6,28,60,82],[6,28,64,86],[6,28,68,90],[6,28,68,94],[6,28,72,98],[6,26,46,78,102],[6,26,48,80,106],[6,26,54,84,110],[6,28,60,88,114],[6,28,64,92,118],[6,28,70,96,122],[6,28,74,100,126],[6,28,78,104,130],[6,28,82,108,134],[],[6,24,50,76,102,128],[6,24,52,78,104,130],[],[6,24,54,82,106,132],[],[6,26,54,86,110,136],[],[6,26,56,90,112,140],[],[6,26,58,94,116,144],[],[6,28,62,98,120,148],[],[6,28,65,101,123,151]],r.G15=1335,r.G18=7973,r.G15_MASK=21522,r.G16=4129,r.G10=1035,r.G12=1625,r.MODE_NUMBER=1,r.MODE_ALPHA_NUM=2,r.MODE_8BIT_BYTE=4,r.MODE_KANJI=8,r.ERROR_CORRECT_LEVEL={L:1,M:0,Q:3,H:2},r.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,30,16],[1,30,12],[1,30,9],[1,26,23],[1,28,17],[1,28,15],[1,28,12],[1,26,22],[1,28,18],[1,28,16],[1,26,28],[1,26,22],[1,26,16],[1,26,14],[1,28,26],[1,28,20],[1,28,18],[1,28,16],[1,28,24],[1,28,20],[1,28,18],[1,26,34],[1,26,28],[1,26,22],[1,26,16],[1,28,32],[1,28,24],[1,28,22],[1,28,20],[1,28,36],[1,28,28],[1,28,24],[1,28,22],[1,26,44],[1,26,34],[1,26,26],[1,26,20],[1,28,40],[1,28,32],[1,28,28],[1,28,24],[1,28,48],[1,28,38],[1,28,30],[1,28,26],[1,28,52],[1,28,42],[1,28,34],[1,28,28],[1,28,56],[1,28,44],[1,28,36],[1,28,30],[1,28,58],[1,28,48],[1,28,38],[1,28,32],[1,28,62],[1,28,50],[1,28,40],[1,28,34],[1,28,60],[1,28,52],[1,28,42],[1,28,36],[1,28,66],[1,28,54],[1,28,44],[1,28,38],[1,28,70],[1,28,58],[1,28,46],[1,28,40],[1,28,74],[1,28,62],[1,28,50],[1,28,44],[1,28,78],[1,28,66],[1=1,e+=2);else if(this.isKanjiMode())for(var r=this.getBuffer(),i=0,n=r.length;i<n;i++)e+=8*(r[i]>=128?2:1);return e},a.prototype.write=function(t){for(var e=0,r=this.parsedData.length;e<r;e++)t.put(this.parsedData[e],8)},a.prototype.getBuffer=function(){return this.parsedData},o.prototype={add:function(t){this.dataList.push(t)},isDark:function(t,e){if(t<0||this.moduleCount<=t||e<0||this.moduleCount<=e)throw new Error(t+","+e);return this.modules[t][e]},getModuleCount:function(){return this.moduleCount},make:function(){if(this.typeNumber<1){for(var t=1;t<40;t++){for(var e=n.getRSBlocks(t,this.errorCorrectLevel),r=new s,i=0,o=0;o<e.length;o++)i+=e[o].dataCount*e[o].totalCount-i;for(o=0,a=0;a<this.dataList.length;a++)(d=this.dataList[a]).put(r,d.getLength());if(r.getLengthInBits()<=i){this.typeNumber=t;break}}}this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(t,e){this.moduleCount=4*this.typeNumber+17,this.modules=Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=Array(this.moduleCount);for(var i=0;i<this.moduleCount;i++)this.modules[r][i]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(t,e),this.typeNumber>=7&&this.setupTypeNumber(t),null==this.dataCache&&(this.dataList.length>0?this.dataList[0].write(new s):null),this.mapData(this,e)},setupPositionProbePattern:function(t,e){for(var r=-1;r<=7;r++)for(var i=-1;i<=7;i++){if(!(t+r<0||this.moduleCount<=t+r||e+i<0||this.moduleCount<=e+i))this.modules[t+r][e+i]=!(0<=r&&r<=6&&(0===i||6===i)||0<=i&&i<=6&&(0===r||6===r)||2<=r&&r<=4&&2<=i&&i<=4)}},getBestMaskPattern:function(){for(var t=0,e=0,r=0;r<8;r++){this.makeImpl(!0,r);var i=this.getLostPoint();(0===r||t>i)&&(t=i,e=r)}return e},createMovieClip:function(t,e,r){var i=t.createEmptyMovieClip(e,r);this.make();for(var o=0,n=this.moduleCount;o<n;o++)for(var s=0,a;s<n;s++){if(a=this.isDark(o,s)){i.beginFill(0,100),i.moveTo(s*o,o*a),i.lineTo((s+1)*o,o*a),i.lineTo((s+1)*o,(a+1)*a),i.lineTo(s*o,(a+1)*a),i.endFill()}}return i},setupTimingPattern:function(){for(var t=8;t<this.moduleCount-8;t++)null==this.modules[t][6]&&(this.modules[t][6]=t%2==0);for(var e=8;e<this.moduleCount-8;e++)null==this.modules[6][e]&&(this.modules[6][e]=e%2==0)},setupPositionAdjustPattern:function(){for(var t=e.getPatternPosition(this.typeNumber),e=0,r=t.length;e<r;e++)for(var i=0;i<r;i++){var n=t[e];if(null==this.modules[n][i]])for(var s=-2;s<=2;s++)for(var a=-2;a<=2;a++)this.modules[n+s][i+a]=-2==s||2==s||-2==a||2==a||0==s&&0==a}},setupTypeNumber:function(t){for(var e=this.getBCHTypeNumber(this.typeNumber),r=0;r<18;r++){var i=!t&&1==(e>>r&1);this.modules[Math.floor(r/3)][r%3+this.moduleCount-8-3]=i}for(r=0;r<18;r++){i=!t&&1==(e>>r&1);this.modules[r%3+this.moduleCount-8-3][Math.floor(r/3)]==i}},setupTypeInfo:function(t,e){for(var r,i,n,s=this.getErrorCorrectPolynomial(this.typeNumber<<3|e).getLength()-1,a=this.getBCHTypeInfo(s);r<9;r++)i=!t&&1==(a>>r&1),this.modules[Math.floor(r/3)][r%3+this.moduleCount-8]=i;for(r=0;r<8;r++)i=!t&&1==(a>>r&1),this.modules[this.moduleCount-8+r][Math.floor(r/3)]=i},mapData:function(t,e){for(var r=-1,i=this.moduleCount-1,n=7,s=0,a=this.moduleCount-1;a>0;a-=2)6===a&&a--;for(;!0;)for(var u=0;u<this.moduleCount;u++){if(null===this.modules[i][a-u]){var c=!1;s<t.getLength()&&(c=1==(t.getBuffer()>>>s&1)),e&&c&&(c=!(i+a+u)%3),this.setModule(i,a-u,c),s--,-1==r?(i--,r=1):i==this.moduleCount?(i=0,r=-1):i+=2*r,n--,(n<0)&&(a-=2,n=7)}}}setModule:function(t,e,r){this.modules[t][e]=r},getErrorCorrectPolynomial:function(t){for(var e=new o([1],0),r=0;r<t;r++){var i=new o([1,0],0);i.exponentiate(t-r),e=e.multiply(i)}return e},getBCHTypeInfo:function(t){for(var e=t<<10;n.bchDigit(e)-n.bchDigit(r.G15)>=0;)e^=r.G15<<(n.bchDigit(e)-n.bchDigit(r.G15));return(t<<10|e)^r.G15_MASK},getBCHTypeNumber:function(t){for(var e=t<<12;n.bchDigit(e)-n.bchDigit(r.G18)>=0;)e^=r.G18<<(n.bchDigit(e)-n.bchDigit(r.G18));return t<<12|e},getLostPoint:function(){for(var t,e,r,i=0,n=0;n<this.moduleCount;n++)for(var s=0;s<this.moduleCount;s++){for(t=0,e=!1,this.isDark(n,s)&&t++,s<this.moduleCount-1&&e||(e=!0,e=!1,s=0);s<this.moduleCount;s++)this.isDark(n,s)?t++:(i+=4*(i+=3*(t-1)),t=0);for(t=0,e=!1,this.isDark(s,n)&&t++,n<this.moduleCount-1&&e||(e=!0,e=!1,n=0);n<this.moduleCount;n++)this.isDark(s,n)?t++:(i+=4*(i+=3*(t-1)),t=0)}for(n=0;n<this.moduleCount-1;n++)for(s=0;s<this.moduleCount-1;s++)e=0,this.isDark(n,s)&&e++,this.isDark(n+1,s)&&e++,this.isDark(n,s+1)&&e++,this.isDark(n+1,s+1)&&e++,i+=(0==e||4==e?3:1)*(i+=e);return i}},n.RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,30,16],[1,30,12],[1,30,9],[1,26,23],[1,28,17],[1,28,15],[1,28,12],[1,26,22],[1,28,18],[1,28,16],[1,26,28],[1,26,22],[1,26,16],[1,26,14],[1,28,26],[1,28,20],[1,28,18],[1,28,16],[1,28,24],[1,28,20],[1,28,18],[1,26,34],[1,26,28],[1,26,22],[1,26,16],[1,28,32],[1,28,24],[1,28,22],[1,28,20],[1,28,36],[1,28,28],[1,28,24],[1,28,22],[1,26,44],[1,26,34],[1,26,26],[1,26,20],[1,28,40],[1,28,32],[1,28,28],[1,28,24],[1,28,48],[1,28,38],[1,28,30],[1,28,26],[1,28,52],[1,28,42],[1,28,34],[1,28,28],[1,28,56],[1,28,44],[1,28,36],[1,28,30],[1,28,58],[1,28,48],[1,28,38],[1,28,32],[1,28,62],[1,28,50],[1,28,40],[1,28,34],[1,28,60],[1,28,52],[1,28,42],[1,28,36],[1,28,66],[1,28,54],[1=1,e+=2}else if(this.isKanjiMode()){var r=this.getBuffer();for(e=0,i=0;i<r.length;i++)e+=8*(r[i]>=128?2:1)}return e},a.prototype.write=function(t){for(var e=0,r=this.parsedData.length;e<r;e++)t.put(this.parsedData[e],8)},a.prototype.getBuffer=function(){return this.parsedData};var i={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7};o.prototype.createArrayBuffer=function(t){t=t||1;var e,r,i,n,s,a,u,c,h,f,l,p=this.getModuleCount()*t*p=new Uint8Array(p*p);for(u=0;u<p;u++)for(c=0;c<p;c++){f=l=0;for(h=0;h<p;h++)this.isDark(Math.floor(u/t),Math.floor(c/t))&&f++,l++;e=Math.floor(f/l*255),p[u*c+p]=e}return p},o.prototype.createImgTag=function(t,e,r){t=t||2,e=void 0!==e?e:4;var i=this.getModuleCount(),n=i*t,o=n+2*e*i,s="",a='<img src="';return s+="data:image/svg+xml;base64,",a+=btoa(this.createSvgTag(t,e,r,!0)),a+='" width="'+o+'" height="'+o+'"',void 0!==r&&(a+=' alt="'+escHtmlAttribute(r)+'"'),a+=">"},o.prototype.createSvgTag=function(t,e,r,i){t=t||2,e=void 0!==e?e:4;var n=this.getModuleCount(),s=n*t,o=s+2*e*n,a="",u="",c="";return void 0!==r&&(c=c.replace(/\&/g,"&amp;"),c=c.replace(/</g,"&lt;"),c=c.replace(/>/g,"&gt;"),c=c.replace(/\"/g,"&quot;")),a+="<svg",a+=' version="1.1"',a+=' xmlns="http://www.w3.org/2000/svg"',a+=' xmlns:xlink="http://www.w3.org/1999/xlink"',a+=' width="'+o+'"',a+=' height="'+o+'"',a+=' viewBox="0 0 '+o+" "+o+'">',void 0!==r&&(a+='<title>'+r+"</title>"),a+='<desc>'+c+"</desc>",a+='<rect width="100%" height="100%" fill="#FFFFFF"/>',a+='<g fill="#000000">';for(var h=0;h<s;h++)for(var f=0;f<s;f++)this.isDark(Math.floor(h/t),Math.floor(f/t))&&(u=f*t+n*e,f=h*t+n*e,a+='<rect x="'+u+'" y="'+f+'" width="'+t+'" height="'+t+'"/>');return a+="</g></svg>",i?a:btoa(unescape(encodeURIComponent(a)))},o.prototype.createTableTag=function(t,e){t=t||2,e=void 0!==e?e:4;var r=this.getModuleCount(),i=r*t,n=i+2*e*r,s="",a='<table style="',a+="border-width:0px;border-style:none;",a+="border-collapse:collapse;",a+="background-color:#FFFFFF;",a+='" cellpadding="'+e*r+'" cellspacing="0">';for(var o=0;o<i;o++){a+="<tr>";for(var u=0;u<i;u++)this.isDark(Math.floor(o/t),Math.floor(u/t))?a+='<td style="width:'+(t+r*2*e)+"px;height:"+(t+r*2*e)+'px;">':a+='<td style="width:'+(t+r*2*e)+"px;height:"+(t+r*2*e)+'px;background:#FFF">';a+="</td>";a+="</tr>"}return a+="</table>"},o.prototype.createCanvas2D=function(t,e,r){t=t||2,e=void 0!==e?e:4;var i=document.createElement("canvas");return i.width=this.getModuleCount()*t+2*e*t,i.height=this.getModuleCount()*t+2*e*t,this.renderTo2dContext(i.getContext("2d"),t,e),r&&r.call(i,i),i},o.prototype.renderTo2dContext=function(t,e,r){e=e||2,r=void 0!==r?r:4;var i=this.getModuleCount(),n=e,s=e*r;for(t.fillStyle="#fff",t.fillRect(0,0,i*n+2*s,i*n+2*s),t.fillStyle="#000",o=0;o<i;o++)for(var a=0;a<i;a++)this.isDark(o,a)&&t.fillRect(n*a+s,n*o+s,n,n)};var n={};n.createText=function(t){return new a(t)};var s={};return s.createImage=function(t,e){e=void 0!==e?e:4;var r=o(t,e);return r.createImgTag()},s.createSvgTag=function(t,e,r){e=void 0!==e?e:4;var i=o(t,e);return i.createSvgTag(void 0,void 0,r)},s.createTableTag=function(t,e){e=void 0!==e?e:4;var r=o(t,e);return r.createTableTag()},s.createCanvas2D=function(t,e,r){e=void 0!==e?e:4;var i=o(t,e);return i.createCanvas2D(void 0,void 0,r)},s.createCanvas=function(t,e,r){e=void 0!==e?e:4;var i=document.createElement("canvas");return i.width=e,i.height=e,s.renderToCanvas(i,t,e,r)},s.renderToCanvas=function(t,e,r,i){i=void 0!==i?i:4;var n=o(e,i);n.renderTo2dContext(t.getContext("2d"),r,i)},"function"==typeof define&&define.amd?define([],function(){}):"object"==typeof module&&module.exports?module.exports=s:QRCode=s}(window);
+
+// ============ 二维码辅助函数（本地Canvas生成，不依赖外部API） ============
+function generateQRDataUrl(text, size, margin) {
+  try {
+    var qr = new QRCode(-1, 'M');
+    qr.addData(text);
+    qr.make();
+    var cellSize = Math.max(2, Math.floor(size / (qr.getModuleCount() + (margin || 2) * 2)));
+    var canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#000';
+    var offset = (size - qr.getModuleCount() * cellSize) / 2;
+    for (var r = 0; r < qr.getModuleCount(); r++) {
+      for (var c = 0; c < qr.getModuleCount(); c++) {
+        if (qr.isDark(r, c)) {
+          ctx.fillRect(Math.round(offset + c * cellSize), Math.round(offset + r * cellSize), cellSize, cellSize);
+        }
+      }
+    }
+    return canvas.toDataURL('image/png');
+  } catch(e) {
+    console.warn('QR generation fallback:', e);
+    var c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    var ctx2 = c.getContext('2d');
+    ctx2.fillStyle = '#f0f0f0';
+    ctx2.fillRect(0, 0, size, size);
+    ctx2.fillStyle = '#999';
+    ctx2.font = '12px sans-serif';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('QR Code', size / 2, size / 2 - 6);
+    ctx2.fillText(String(text).substring(0, 18), size / 2, size / 2 + 10);
+    return c.toDataURL('image/png');
+  }
+}
+
 // ============ DATA STORES ============
 let orders = [
   { id: 'HSJ-2026-0001', type: '水电维修', address: 'A栋-1单元-101', contact: '王先生', phone: '138****6789', priority: '紧急', status: 'pending', tech: '', time: '2026-06-08 14:30', desc: '厨房水龙头漏水严重，已关闭总阀门', dispatchedAt: '', completedAt: '', materials: '', source: 'owner', creator: '客服小张' },
@@ -3106,14 +3148,14 @@ function showQRCode(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return showFixedAssetQRCode(code);
   const qrLink = assetInspectUrl(code);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
+  const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   openModal(`📱 设备二维码 — ${a.name}`,
     `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
       <div style="flex-shrink:0;text-align:center;">
         <div style="border:2px solid var(--gray-200);border-radius:12px;padding:12px;background:#fff;display:inline-block;">
-          <img src="${qrUrl}" alt="QR" style="display:block;width:220px;height:220px;" onerror="this.outerHTML='<div style=width:220px;height:220px;display:flex;align-items:center;justify-content:center;background:var(--gray-100);border-radius:8px;color:var(--gray-500);>⚠️ 二维码加载失败<br>请检查网络连接</div>'">
+          <img src="${qrDataUrl}" alt="QR" style="display:block;width:220px;height:220px;border:none;">
         </div>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 微信扫码 → 巡检上传</div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 扫码 → 巡检上传</div>
       </div>
       <div style="flex:1;min-width:200px;">
         <h4 style="margin:0 0 12px 0;color:var(--primary);">${a.code}</h4>
@@ -3140,7 +3182,7 @@ function printQRLabel(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return;
   const qrLink = assetInspectUrl(code);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
+  const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   const w = window.open('','_blank','width=600,height=700');
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>设备标签 — ${a.code}</title>
@@ -3159,7 +3201,7 @@ function printQRLabel(code) {
     <div class="label">
       <h3>${a.name}</h3>
       <div class="code">${a.code}</div>
-      <img src="${qrUrl}" alt="QR" onerror="this.style.display='none'">
+      <img src="${qrDataUrl}" alt="QR">
       <div class="info">
         <span>📍 ${a.loc}</span><span>📦 ${a.model}</span>
         <span>🔄 维保：${a.cycle}</span><span>📅 下次巡检：${a.nextInspection||'—'}</span>
@@ -3174,11 +3216,10 @@ function printQRLabel(code) {
 function batchQRPrint() {
   const items = assets.filter(a => a.status !== 'scrapped');
   if (items.length === 0) { showToast('没有可生成二维码的设备', 'warning'); return; }
+  // Pre-generate all QR data URLs
+  const qrMap = {};
+  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a.code), 150, 2); });
   const w = window.open('','_blank','width=800,height=800');
-  const qrUrl = (a) => {
-    const link = assetInspectUrl(a.code);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}&margin=4`;
-  };
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量设备二维码</title>
     <style>
@@ -3196,7 +3237,7 @@ function batchQRPrint() {
     <p style="text-align:center;font-size:12px;color:#666;">手机扫码即可打开巡检页面，拍照上传记录</p>
     <div class="grid">
       ${items.map(a=>`<div class="card">
-        <img src="${qrUrl(a)}" alt="QR" onerror="this.style.display='none'">
+        <img src="${qrMap[a.code]}" alt="QR">
         <div class="name">${a.name}</div><div class="code">${a.code}</div>
         <div class="hint">📱 扫码巡检</div>
       </div>`).join('')}
@@ -3211,14 +3252,14 @@ function showFixedAssetQRCode(code) {
   const a = fixedAssets.find(a => a.code === code);
   if (!a) return;
   const qrLink = assetInspectUrl(code);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrLink)}&margin=8`;
+  const qrDataUrl = generateQRDataUrl(qrLink, 220, 2);
   openModal(`📱 固定资产二维码 — ${esc(a.name)}`,
     `<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
       <div style="flex-shrink:0;text-align:center;">
         <div style="border:2px solid var(--gray-200);border-radius:12px;padding:12px;background:#fff;display:inline-block;">
-          <img src="${qrUrl}" alt="QR" style="display:block;width:220px;height:220px;" onerror="this.outerHTML='<div style=width:220px;height:220px;display:flex;align-items:center;justify-content:center;background:var(--gray-100);border-radius:8px;color:var(--gray-500);>⚠️ 二维码加载失败</div>'">
+          <img src="${qrDataUrl}" alt="QR" style="display:block;width:220px;height:220px;border:none;">
         </div>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 微信扫码 → 巡检上传</div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:6px;">📱 扫码 → 巡检上传</div>
       </div>
       <div style="flex:1;min-width:200px;">
         <h4 style="margin:0 0 12px 0;color:var(--primary);">${esc(a.code)}</h4>
@@ -3241,11 +3282,10 @@ function showFixedAssetQRCode(code) {
 function batchFixedAssetQRPrint() {
   const items = fixedAssets.filter(a => a.status !== 'scrapped');
   if (items.length === 0) { showToast('没有可生成二维码的固定资产', 'warning'); return; }
+  // Pre-generate all QR data URLs
+  const qrMap = {};
+  items.forEach(a => { qrMap[a.code] = generateQRDataUrl(assetInspectUrl(a.code), 150, 2); });
   const w = window.open('','_blank','width=800,height=800');
-  const qrUrl = (a) => {
-    const link = assetInspectUrl(a.code);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(link)}&margin=4`;
-  };
   w.document.write(`
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>批量固定资产二维码</title>
     <style>
@@ -3263,7 +3303,7 @@ function batchFixedAssetQRPrint() {
     <p style="text-align:center;font-size:12px;color:#666;">手机扫码即可打开巡检页面，拍照上传记录</p>
     <div class="grid">
       ${items.map(a=>`<div class="card">
-        <img src="${qrUrl(a)}" alt="QR" onerror="this.style.display='none'">
+        <img src="${qrMap[a.code]}" alt="QR">
         <div class="name">${a.name}</div><div class="code">${a.code}</div>
         <div class="hint">📱 扫码巡检</div>
       </div>`).join('')}
