@@ -464,6 +464,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
     <div class="nav-item" data-page="tracking"><span class="nav-icon">📍</span> 进度追踪</div>
     <div class="nav-section">工程系统管理</div>
     <div class="nav-item" data-page="assets"><span class="nav-icon">🏗️</span> 工程巡检管理</div>
+    <div class="nav-item" data-page="technicians"><span class="nav-icon">👨‍🔧</span> 维修师傅管理</div>
     <div class="nav-section">秩维系统管理</div>
     <div class="nav-item" data-page="security"><span class="nav-icon">🛡️</span> 秩维系统管理</div>
     <div class="nav-item" data-page="cleaning"><span class="nav-icon">🧹</span> 保洁系统管理</div>
@@ -480,7 +481,6 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
     <div class="nav-item" data-page="facats"><span class="nav-icon">🏷️</span> 固定资产类别管理</div>
     <div class="nav-item" data-page="addresses"><span class="nav-icon">📍</span> 报修地址管理</div>
     <div class="nav-item" data-page="zones"><span class="nav-icon">🗺️</span> 公区管理</div>
-    <div class="nav-item" data-page="technicians"><span class="nav-icon">👨‍🔧</span> 维修师傅</div>
     <div class="nav-item" data-page="backup"><span class="nav-icon">💾</span> 数据备份</div>
     <div class="nav-section">用户管理</div>
     <div class="nav-item" data-page="users"><span class="nav-icon">👥</span> 用户管理</div>
@@ -518,6 +518,12 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
         <div class="stat-card orange" onclick="navigateTo('dispatch')"><div class="stat-icon">⏳</div><div class="stat-info"><h3 id="statPending">23</h3><p>待处理工单</p><span class="stat-trend down">↓ 8.3%</span></div></div>
         <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-info"><h3>94.2<span style="font-size:16px">%</span></h3><p>工单完成率</p><span class="stat-trend up">↑ 2.1%</span></div></div>
         <div class="stat-card purple"><div class="stat-icon">⏱️</div><div class="stat-info"><h3>—</h3><p>平均维修时长</p><span class="stat-trend up">实时统计</span></div></div>
+      </div>
+      <div class="stats-grid" style="margin-top:0;">
+        <div class="stat-card red" onclick="navigateTo('assets');setTimeout(function(){document.getElementById('assetFilterStatus').value='overdue';renderAssets();},200);"><div class="stat-icon">🚨</div><div class="stat-info"><h3 id="statInspectOverdue">0</h3><p>逾期未检设备</p><span class="stat-trend">需立即处理</span></div></div>
+        <div class="stat-card orange" onclick="navigateTo('assets');setTimeout(function(){document.getElementById('assetFilterStatus').value='pending_inspection';renderAssets();},200);"><div class="stat-icon">🔔</div><div class="stat-info"><h3 id="statInspectPending">0</h3><p>待巡检设备</p><span class="stat-trend">7天内到期</span></div></div>
+        <div class="stat-card blue" onclick="navigateTo('assets');setTimeout(function(){document.getElementById('assetFilterStatus').value='all';renderAssets();},200);"><div class="stat-icon">📅</div><div class="stat-info"><h3 id="statInspectTotal">0</h3><p>设备总数</p><span class="stat-trend">在线统计</span></div></div>
+        <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-info"><h3 id="statInspectDone">0</h3><p>本月巡检完成</p><span class="stat-trend">巡检覆盖率</span></div></div>
       </div>
       <div class="charts-row">
         <div class="chart-card"><h3>📊 月度工单趋势</h3><div class="chart-container" id="monthlyChart"></div></div>
@@ -849,12 +855,15 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
           <h3>🏗️ 设备资产清单</h3>
           <div class="table-filters">
             <select class="filter-select" id="assetFilterCat" onchange="renderAssets()"><option value="all">全部类别</option></select>
+            <select class="filter-select" id="assetFilterStatus" onchange="renderAssets()" style="margin-left:6px;"><option value="all">全部状态</option><option value="normal">✅ 正常</option><option value="pending_inspection">🔔 待巡检</option><option value="overdue">🚨 逾期未检</option><option value="maintenance">🔧 维保中</option><option value="warning">⚠️ 需检修</option><option value="scrapped">❌ 已报废</option></select>
             <input type="text" class="filter-input" placeholder="🔍 搜索设备..." id="assetSearch" oninput="renderAssets()">
             <button class="btn btn-primary btn-sm" onclick="showAssetModal()">+ 添加设备</button>
             <button class="btn btn-outline btn-sm" onclick="showInspectionCalendar()" style="border-color:var(--warning);color:var(--warning);">📅 巡检日历</button>
             <button class="btn btn-outline btn-sm" onclick="batchQRPrint()" style="border-color:var(--info);color:var(--info);">📱 批量二维码</button>
             <button class="btn btn-secondary btn-sm" onclick="printTableOnly('printArea-assets','🏗️ 设备资产清单')">🖨️ 打印</button>
             <button class="btn btn-success btn-sm" onclick="exportAssetsExcel()">📥 导出Excel</button>
+            <button class="btn btn-outline btn-sm" onclick="showInspectionTaskList()" style="border-color:var(--primary);color:var(--primary);">📋 巡检任务</button>
+            <button class="btn btn-outline btn-sm" onclick="showScrapAssetModal()" style="border-color:#f44336;color:#f44336;">🗑️ 设备报废</button>
           </div>
         </div>
         <table class="data-table"><thead><tr><th>设备编号</th><th>设备名称</th><th>类别</th><th>位置</th><th>品牌/型号</th><th>安装日期</th><th>维保周期</th><th>状态</th><th>操作</th></tr></thead><tbody id="assetsTable"></tbody></table>
@@ -947,12 +956,17 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
         <div class="table-header">
           <h3>👨‍🔧 维修师傅管理</h3>
           <div class="table-filters">
-            <select class="filter-select" id="techFilterStatus" onchange="renderTechnicianList()"><option value="all">全部状态</option><option value="available">空闲</option><option value="busy">忙碌</option></select>
-            <input type="text" class="filter-input" placeholder="🔍 搜索师傅..." id="techSearch" oninput="renderTechnicianList()">
+            <select class="filter-select" id="techFilterStatus" onchange="renderTechnicianList()"><option value="all">全部状态</option><option value="available">空闲</option><option value="busy">忙碌</option><option value="off">休假</option></select>
+            <select class="filter-select" id="techFilterSkill" onchange="renderTechnicianList()" style="margin-left:6px;"><option value="all">全部技能</option></select>
+            <input type="text" class="filter-input" placeholder="🔍 搜索师傅姓名/用户名/手机/技能..." id="techSearch" oninput="renderTechnicianList()">
             <button class="btn btn-primary btn-sm" onclick="showTechnicianModal()">+ 录入师傅</button>
+            <button class="btn btn-outline btn-sm" onclick="refreshTechWorkload()" style="border-color:var(--info);color:var(--info);">🔄 刷新工单数</button>
+            <button class="btn btn-secondary btn-sm" onclick="printTableOnly('printArea-techs','👨‍🔧 维修师傅清单')">🖨️ 打印</button>
           </div>
         </div>
-        <table class="data-table"><thead><tr><th>编号</th><th>姓名</th><th>技能</th><th>工龄</th><th>当前工单</th><th>最大工单</th><th>评分</th><th>状态</th><th>操作</th></tr></thead><tbody id="technicianTable"></tbody></table>
+        <div id="techSummary" style="display:flex;gap:12px;padding:10px 16px;flex-wrap:wrap;font-size:13px;"></div>
+        <table class="data-table"><thead><tr><th>编号</th><th>姓名</th><th>用户名</th><th>手机</th><th>技能</th><th>工龄</th><th>入职</th><th>当前工单</th><th>最大</th><th>评分</th><th>状态</th><th>操作</th></tr></thead><tbody id="technicianTable"></tbody></table>
+        <div id="printArea-techs" style="display:none;"></div>
       </div>
     </div>
 
@@ -1197,11 +1211,11 @@ let orders = [
 let nextOrderId = 13;
 
 let technicians = [
-  { id: 1, name: '赵师傅', skills: '水电/空调', experience: '8年', load: 65, current: 2, max: 5, rating: 4.9, status: 'busy' },
-  { id: 2, name: '钱师傅', skills: '弱电/门禁', experience: '6年', load: 40, current: 1, max: 4, rating: 4.7, status: 'available' },
-  { id: 3, name: '孙师傅', skills: '管道/电梯', experience: '12年', load: 80, current: 3, max: 5, rating: 4.8, status: 'busy' },
-  { id: 4, name: '周师傅', skills: '墙面/门窗', experience: '5年', load: 25, current: 0, max: 4, rating: 4.6, status: 'available' },
-  { id: 5, name: '吴师傅', skills: '空调/暖通', experience: '10年', load: 50, current: 2, max: 5, rating: 4.9, status: 'available' },
+  { id: 1, name: '赵师傅', username: 'zhao', phone: '138****1001', skills: '水电/空调', experience: '8年', hireDate: '2018-03', load: 65, current: 2, max: 5, rating: 4.9, status: 'busy', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
+  { id: 2, name: '钱师傅', username: 'qian', phone: '138****1002', skills: '弱电/门禁', experience: '6年', hireDate: '2020-06', load: 40, current: 1, max: 4, rating: 4.7, status: 'available', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
+  { id: 3, name: '孙师傅', username: 'sun', phone: '138****1003', skills: '管道/电梯', experience: '12年', hireDate: '2014-01', load: 80, current: 3, max: 5, rating: 4.8, status: 'busy', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
+  { id: 4, name: '周师傅', username: 'zhou', phone: '138****1004', skills: '墙面/门窗', experience: '5年', hireDate: '2021-04', load: 25, current: 0, max: 4, rating: 4.6, status: 'available', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
+  { id: 5, name: '吴师傅', username: 'wu', phone: '138****1005', skills: '空调/暖通', experience: '10年', hireDate: '2016-08', load: 50, current: 2, max: 5, rating: 4.9, status: 'available', password: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92' },
 ];
 let nextTechId = 6;
 
@@ -2697,25 +2711,122 @@ function showSourceDetail(source) {
 
 // ============ TECHNICIAN MANAGEMENT ============
 function renderTechnicianList() {
-  const filter = document.getElementById('techFilterStatus')?.value || 'all';
-  const search = (document.getElementById('techSearch')?.value || '').toLowerCase();
-  let filtered = technicians;
-  if (filter !== 'all') filtered = filtered.filter(t => t.status === filter);
-  if (search) filtered = filtered.filter(t => t.name.includes(search) || t.skills.includes(search));
-  document.getElementById('technicianTable').innerHTML = filtered.map(t => {
-    const statusColor = t.status === 'available' ? 'var(--success)' : 'var(--warning)';
-    const statusText = t.status === 'available' ? '空闲' : '忙碌';
-    const loadClass = t.load < 35 ? 'low' : t.load < 70 ? 'mid' : 'high';
-    return `<tr>
-      <td><strong>HSJ-GC-${String(t.id).padStart(3,'0')}</strong></td>
-      <td>${t.name}</td><td>${t.skills}</td><td>${t.experience}</td>
-      <td>${t.current}</td><td>${t.max}</td><td>⭐${t.rating}</td>
-      <td><span style="color:${statusColor};font-weight:600;">● ${statusText}</span></td>
-      <td>
-        <button class="btn btn-primary btn-xs" onclick="editTechnician(${t.id})">编辑</button>
-        <button class="btn btn-danger btn-xs" style="margin-left:4px;" onclick="deleteTechnician(${t.id})">删除</button>
-      </td></tr>`;
-  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:40px;">暂无师傅记录</td></tr>';
+  // 先刷新技能筛选下拉框
+  var skillSel = document.getElementById('techFilterSkill');
+  if (skillSel && skillSel.options.length <= 1) {
+    var allSkills = [];
+    technicians.forEach(function(t) {
+      if (t.skills) t.skills.split('/').forEach(function(s) { s = s.trim(); if (s && allSkills.indexOf(s) === -1) allSkills.push(s); });
+    });
+    skillSel.innerHTML = '<option value="all">全部技能</option>' + allSkills.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  }
+
+  var filter = document.getElementById('techFilterStatus')?.value || 'all';
+  var skillFilter = document.getElementById('techFilterSkill')?.value || 'all';
+  var search = (document.getElementById('techSearch')?.value || '').toLowerCase();
+  var filtered = technicians;
+  if (filter !== 'all') filtered = filtered.filter(function(t) { return t.status === filter; });
+  if (skillFilter !== 'all') filtered = filtered.filter(function(t) { return t.skills && t.skills.indexOf(skillFilter) > -1; });
+  if (search) filtered = filtered.filter(function(t) {
+    return t.name.toLowerCase().indexOf(search) > -1
+      || (t.username && t.username.toLowerCase().indexOf(search) > -1)
+      || (t.phone && t.phone.toLowerCase().indexOf(search) > -1)
+      || t.skills.toLowerCase().indexOf(search) > -1;
+  });
+
+  // 统计摘要
+  var total = filtered.length;
+  var avail = filtered.filter(function(t) { return t.status === 'available'; }).length;
+  var busy = filtered.filter(function(t) { return t.status === 'busy'; }).length;
+  var off = filtered.filter(function(t) { return t.status === 'off'; }).length;
+  var sumEl = document.getElementById('techSummary');
+  if (sumEl) {
+    sumEl.innerHTML = '<span>📊 共 <strong>' + total + '</strong> 人</span>'
+      + '<span style="color:#2e7d32;">🟢 空闲 <strong>' + avail + '</strong></span>'
+      + '<span style="color:#e65100;">🟡 忙碌 <strong>' + busy + '</strong></span>'
+      + (off > 0 ? '<span style="color:#999;">⚫ 休假 <strong>' + off + '</strong></span>' : '');
+  }
+
+  var statusLabel = {
+    available: '<span style="color:#2e7d32;font-weight:600;">🟢 空闲</span>',
+    busy: '<span style="color:#e65100;font-weight:600;">🟡 忙碌</span>',
+    off: '<span style="color:#999;font-weight:600;">⚫ 休假</span>'
+  };
+
+  var tbody = document.getElementById('technicianTable');
+  tbody.innerHTML = filtered.map(function(t) {
+    var orderCount = orders.filter(function(o) { return o.tech === t.name && (o.status === 'processing' || o.status === 'dispatched'); }).length;
+    var totalDone = orders.filter(function(o) { return o.tech === t.name && o.status === 'completed'; }).length;
+    return '<tr>'
+      + '<td><strong>HSJ-GC-' + String(t.id).padStart(3,'0') + '</strong></td>'
+      + '<td><strong>' + esc(t.name) + '</strong></td>'
+      + '<td>' + (t.username || '—') + '</td>'
+      + '<td>' + (t.phone || '—') + '</td>'
+      + '<td>' + esc(t.skills) + '</td>'
+      + '<td>' + esc(t.experience || '—') + '</td>'
+      + '<td>' + (t.hireDate || '—') + '</td>'
+      + '<td><span style="' + (orderCount >= t.max ? 'color:#f44336;font-weight:700;' : '') + '">' + orderCount + '</span> / ' + t.max + '</td>'
+      + '<td>' + t.max + '</td>'
+      + '<td>' + (t.rating ? '⭐' + t.rating : '—') + '</td>'
+      + '<td>' + (statusLabel[t.status] || '—') + '</td>'
+      + '<td style="white-space:nowrap;">'
+        + '<button class="btn btn-primary btn-xs" onclick="editTechnician(' + t.id + ')" title="编辑">✏️</button> '
+        + '<button class="btn btn-info btn-xs" onclick="viewTechOrders(\'' + esc(t.name) + '\')" title="查看工单" style="margin-left:2px;">📋 ' + totalDone + '</button> '
+        + '<button class="btn btn-danger btn-xs" onclick="deleteTechnician(' + t.id + ')" title="删除" style="margin-left:2px;">🗑️</button>'
+      + '</td></tr>';
+  }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--gray-400);padding:40px;">暂无师傅记录</td></tr>';
+}
+
+function refreshTechWorkload() {
+  // 根据实际工单刷新每位师傅的 current/load
+  technicians.forEach(function(t) {
+    t.current = orders.filter(function(o) {
+      return o.tech === t.name && (o.status === 'processing' || o.status === 'dispatched');
+    }).length;
+    t.load = Math.round((t.current / Math.max(t.max, 1)) * 100);
+    // 自动更新状态：有进行中工单=busy，否则保持
+    if (t.status !== 'off') {
+      t.status = t.current > 0 ? 'busy' : 'available';
+    }
+  });
+  saveAllData();
+  renderTechnicianList();
+  showToast('✅ 工单数已根据实际工单刷新', 'success');
+}
+
+function viewTechOrders(techName) {
+  var techOrders = orders.filter(function(o) { return o.tech === techName; });
+  if (techOrders.length === 0) {
+    showToast('📭 ' + techName + ' 暂无工单记录', 'warning');
+    return;
+  }
+
+  var html = '<div style="max-height:60vh;overflow-y:auto;">'
+    + '<div style="font-weight:600;margin-bottom:12px;font-size:14px;">👨‍🔧 ' + esc(techName) + ' 的工单记录（共 ' + techOrders.length + ' 条）</div>';
+
+  techOrders.sort(function(a, b) { return b.time.localeCompare(a.time); });
+  var statusColor = { pending: '#999', dispatched: '#1a73e8', processing: '#e65100', completed: '#2e7d32', cancelled: '#f44336' };
+  var statusText = { pending: '待分配', dispatched: '已派单', processing: '处理中', completed: '已完成', cancelled: '已取消' };
+
+  techOrders.forEach(function(o) {
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid ' + (statusColor[o.status] || '#ccc') + ';">'
+      + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
+      + '<strong>' + esc(o.id) + '</strong>'
+      + '<span style="font-size:12px;padding:2px 8px;border-radius:10px;background:' + (statusColor[o.status] || '#eee') + ';color:#fff;">' + (statusText[o.status] || o.status) + '</span>'
+      + '</div>'
+      + '<div style="font-size:13px;color:#555;">' + esc(o.type) + ' · ' + esc(o.address) + '</div>'
+      + '<div style="font-size:12px;color:#888;margin-top:2px;">'
+      + '报修: ' + (o.time || '—')
+      + (o.dispatchedAt ? ' · 派单: ' + o.dispatchedAt : '')
+      + (o.completedAt ? ' · 完成: ' + o.completedAt : '')
+      + '</div>'
+      + '<div style="font-size:12px;color:#888;">描述: ' + esc(o.desc || '无') + '</div>'
+      + (o.materials ? '<div style="font-size:12px;color:#1a73e8;">📦 用料: ' + esc(o.materials) + '</div>' : '')
+      + '</div>';
+  });
+  html += '</div>';
+
+  openModal('📋 ' + esc(techName) + ' 的工单记录', html, '<button class="btn btn-primary" onclick="closeModal()">关闭</button>');
 }
 
 function showTechnicianModal(id = null) {
@@ -2723,42 +2834,84 @@ function showTechnicianModal(id = null) {
   const title = t ? '✏️ 编辑维修师傅' : '👨‍🔧 录入维修师傅';
   openModal(title,
     `<div style="display:flex;flex-direction:column;gap:14px;">
-      <div class="form-group"><label>姓名 *</label><input type="text" id="techName" value="${t?t.name:''}" placeholder="请输入姓名"></div>
-      <div class="form-group"><label>技能 *</label><input type="text" id="techSkills" value="${t?t.skills:''}" placeholder="如：水电/空调/弱电"></div>
-      <div class="form-group"><label>工龄</label><input type="text" id="techExp" value="${t?t.experience:''}" placeholder="如：5年"></div>
-      <div class="form-group"><label>最大工单数</label><input type="number" id="techMax" value="${t?t.max:'4'}" min="1" max="10"></div>
-      <div class="form-group"><label>评分</label><input type="number" id="techRating" value="${t?t.rating:''}" min="0" max="5" step="0.1" placeholder="如：4.5"></div>
-      <div class="form-group"><label>状态</label><select id="techStatus"><option value="available" ${t&&t.status==='available'?'selected':''}>空闲</option><option value="busy" ${t&&t.status==='busy'?'selected':''}>忙碌</option></select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>姓名 *</label><input type="text" id="techName" value="${t?t.name:''}" placeholder="请输入姓名"></div>
+        <div class="form-group"><label>手机号 *</label><input type="text" id="techPhone" value="${t&&t.phone?t.phone:''}" placeholder="如：138****1001"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>登录用户名 *</label><input type="text" id="techUsername" value="${t&&t.username?t.username:''}" placeholder="${t?'登录用户名':'如：zhaoshifu'}" autocomplete="off"></div>
+        <div class="form-group"><label>登录密码 ${t?'<span style=\"font-size:11px;color:#888;\">(留空不修改)</span>':'*'}</label><input type="password" id="techPassword" value="" placeholder="${t?'留空则不修改密码':'请设置登录密码'}" autocomplete="new-password"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>技能 *</label><input type="text" id="techSkills" value="${t?t.skills:''}" placeholder="如：水电/空调/弱电"></div>
+        <div class="form-group"><label>工龄</label><input type="text" id="techExp" value="${t?t.experience:''}" placeholder="如：5年"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>入职日期</label><input type="month" id="techHire" value="${t&&t.hireDate?t.hireDate:''}"></div>
+        <div class="form-group"><label>最大接单数</label><input type="number" id="techMax" value="${t?t.max:'4'}" min="1" max="20"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group"><label>评分</label><input type="number" id="techRating" value="${t?t.rating:''}" min="0" max="5" step="0.1" placeholder="如：4.5"></div>
+        <div class="form-group"><label>状态</label><select id="techStatus">
+          <option value="available" ${t&&t.status==='available'?'selected':''}>🟢 空闲</option>
+          <option value="busy" ${t&&t.status==='busy'?'selected':''}>🟡 忙碌</option>
+          <option value="off" ${t&&t.status==='off'?'selected':''}>⚫ 休假</option>
+        </select></div>
+      </div>
+      ${t ? '<div style="font-size:12px;color:#888;background:#f9fafb;padding:10px;border-radius:8px;">📊 累计完成工单: <strong>' + orders.filter(function(o){return o.tech===t.name&&o.status==='completed';}).length + '</strong> 单 · 当前工单: <strong>' + t.current + '</strong> / ' + t.max + '</div>' : ''}
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
      <button class="btn btn-primary" onclick="${t?'saveTechnicianEdit('+t.id+')':'createTechnician()'}">💾 保存</button>`);
 }
 
-function createTechnician() {
+async function createTechnician() {
   const name = document.getElementById('techName').value.trim();
   const skills = document.getElementById('techSkills').value.trim();
+  const phone = document.getElementById('techPhone').value.trim();
+  const username = document.getElementById('techUsername').value.trim();
+  const password = document.getElementById('techPassword').value;
   if (!name || !skills) { showToast('请填写姓名和技能', 'error'); return; }
+  if (!phone) { showToast('请填写手机号', 'error'); return; }
+  if (!username) { showToast('请填写登录用户名', 'error'); return; }
+  if (!password) { showToast('请设置登录密码', 'error'); return; }
+  // 检查用户名唯一性
+  if (technicians.find(function(t) { return t.username === username; })) { showToast('⚠️ 该用户名已存在，请换一个', 'error'); return; }
+  if (users.find(function(u) { return u.name === username; })) { showToast('⚠️ 该用户名与系统用户冲突，请换一个', 'error'); return; }
+  const passwordHash = await sha256(password);
   technicians.push({
-    id: nextTechId++, name, skills,
+    id: nextTechId++, name, username, phone, skills,
     experience: document.getElementById('techExp').value || '新入职',
+    hireDate: document.getElementById('techHire').value || '',
     current: 0, max: parseInt(document.getElementById('techMax').value) || 4,
     rating: parseFloat(document.getElementById('techRating').value) || 0,
-    load: 0, status: document.getElementById('techStatus').value
+    load: 0, status: document.getElementById('techStatus').value,
+    password: passwordHash
   });
   closeModal(); refreshAll();
   showToast(`✅ 维修师傅 ${name} 录入成功`, 'success');
 }
 
-function saveTechnicianEdit(id) {
+async function saveTechnicianEdit(id) {
   const t = technicians.find(t => t.id === id);
   if (!t) return;
+  const newUsername = document.getElementById('techUsername').value.trim();
+  const newPassword = document.getElementById('techPassword').value;
+  if (!newUsername) { showToast('登录用户名不能为空', 'error'); return; }
+  // 检查用户名唯一性（排除自身）
+  var dup = technicians.find(function(u) { return u.username === newUsername && u.id !== id; });
+  if (dup) { showToast('⚠️ 该用户名已被 ' + dup.name + ' 使用，请换一个', 'error'); return; }
+  if (users.find(function(u) { return u.name === newUsername; })) { showToast('⚠️ 该用户名与系统用户冲突，请换一个', 'error'); return; }
   t.name = document.getElementById('techName').value.trim();
+  t.username = newUsername;
+  t.phone = document.getElementById('techPhone').value.trim();
   t.skills = document.getElementById('techSkills').value.trim();
   t.experience = document.getElementById('techExp').value;
+  t.hireDate = document.getElementById('techHire').value;
   t.max = parseInt(document.getElementById('techMax').value) || 4;
   t.rating = parseFloat(document.getElementById('techRating').value) || 0;
   t.status = document.getElementById('techStatus').value;
-  t.load = Math.round((t.current / t.max) * 100);
+  if (newPassword) { t.password = await sha256(newPassword); }
+  t.load = Math.round((t.current / Math.max(t.max, 1)) * 100);
   closeModal(); refreshAll();
   showToast('✅ 师傅信息已更新', 'success');
 }
@@ -2881,13 +3034,15 @@ function cycleDaysFromType(type, customVal) {
 function updateAssetStats() {
   document.getElementById('assetTotal').textContent = assets.length;
   document.getElementById('assetNormal').textContent = assets.filter(a => a.status === 'normal').length;
-  document.getElementById('assetWarn').textContent = assets.filter(a => a.status !== 'normal' && a.status !== 'scrapped').length;
+  document.getElementById('assetWarn').textContent = assets.filter(a => a.status === 'overdue' || a.status === 'pending_inspection').length;
 }
 function renderAssets() {
   const cat = document.getElementById('assetFilterCat')?.value || 'all';
+  const status = document.getElementById('assetFilterStatus')?.value || 'all';
   const search = (document.getElementById('assetSearch')?.value || '').toLowerCase();
   let filtered = assets;
   if (cat !== 'all') filtered = filtered.filter(a => a.cat === cat);
+  if (status !== 'all') filtered = filtered.filter(a => a.status === status);
   if (search) filtered = filtered.filter(a => a.name.includes(search) || a.code.includes(search) || a.loc.includes(search));
   populateAssetCatDropdowns();
   // 自动检查逾期状态
@@ -2932,6 +3087,39 @@ function renderAssets() {
   updateAssetStats();
 }
 
+// ============ 设备状态自动计算 ============
+function autoCalcAssetStatus() {
+  var statusEl = document.getElementById('astStatus');
+  if (!statusEl) return;
+  // 特殊状态（维保中/需检修/已报废）不覆盖
+  var current = statusEl.value;
+  if (current === 'maintenance' || current === 'warning' || current === 'scrapped') return;
+
+  var nextInsp = document.getElementById('astNextInsp');
+  var lastInsp = document.getElementById('astLastInsp');
+
+  if (nextInsp && nextInsp.value) {
+    var today = new Date(); today.setHours(0,0,0,0);
+    var next = new Date(nextInsp.value); next.setHours(0,0,0,0);
+    var diffDays = Math.ceil((next.getTime() - today.getTime()) / (1000*60*60*24));
+
+    if (diffDays < 0) {
+      // 已超过下次巡检日期 → 逾期未检
+      statusEl.value = 'overdue';
+    } else if (diffDays <= 7) {
+      // 7天内到期 → 待巡检
+      statusEl.value = 'pending_inspection';
+    } else if (lastInsp && lastInsp.value) {
+      statusEl.value = 'normal';
+    } else {
+      // 没有巡检记录但也没过期
+      statusEl.value = lastInsp && lastInsp.value ? 'normal' : 'normal';
+    }
+  } else if (lastInsp && lastInsp.value) {
+    statusEl.value = 'normal';
+  }
+}
+
 function showAssetModal(code = null) {
   const a = code ? assets.find(a => a.code === code) : null;
   const selCyc = (type) => (a && a.cycleType === type) ? 'selected' : '';
@@ -2944,7 +3132,7 @@ function showAssetModal(code = null) {
       <div class="form-group"><label>品牌/型号</label><input type="text" id="astModel" value="${a?a.model:''}" placeholder="品牌型号"></div>
       <div class="form-group"><label>安装日期</label><input type="text" id="astDate" value="${a?a.date:''}" placeholder="如：2021-06"></div>
       <div class="form-group"><label>维保周期</label>
-        <select id="astCycleType" onchange="document.getElementById('astCycleCustom').style.display=this.value==='custom'?'':'none'">
+        <select id="astCycleType" onchange="document.getElementById('astCycleCustom').style.display=this.value==='custom'?'':'none';autoCalcAssetStatus()">
           <option value="daily" ${selCyc('daily')}>日检（每天）</option><option value="weekly" ${selCyc('weekly')}>周检（每周）</option>
           <option value="monthly" ${selCyc('monthly')}>月度（30天）</option><option value="quarterly" ${selCyc('quarterly')}>季度（90天）</option>
           <option value="semiannual" ${selCyc('semiannual')}>半年（180天）</option><option value="annual" ${selCyc('annual')}>年检（365天）</option>
@@ -2952,9 +3140,9 @@ function showAssetModal(code = null) {
         </select>
         <input type="text" id="astCycleCustom" placeholder="自定义周期（如：45天）" value="${(a&&a.cycleType==='custom')?a.cycle:''}" style="margin-top:6px;display:${(a&&a.cycleType==='custom')?'':'none'};">
       </div>
-      <div class="form-group"><label>上次巡检日期</label><input type="date" id="astLastInsp" value="${a&&a.lastInspection?a.lastInspection:''}"></div>
-      <div class="form-group"><label>下次巡检日期</label><input type="date" id="astNextInsp" value="${a&&a.nextInspection?a.nextInspection:''}"></div>
-      <div class="form-group"><label>状态</label><select id="astStatus">
+      <div class="form-group"><label>上次巡检日期</label><input type="date" id="astLastInsp" value="${a&&a.lastInspection?a.lastInspection:''}" onchange="autoCalcAssetStatus()"></div>
+      <div class="form-group"><label>下次巡检日期</label><input type="date" id="astNextInsp" value="${a&&a.nextInspection?a.nextInspection:''}" onchange="autoCalcAssetStatus()"></div>
+      <div class="form-group"><label>状态 <small style="color:var(--gray-400);font-weight:400;">（根据巡检日期自动计算）</small></label><select id="astStatus">
         <option value="normal" ${selSt('normal')}>✅ 正常</option><option value="pending_inspection" ${selSt('pending_inspection')}>🔔 待巡检</option>
         <option value="maintenance" ${selSt('maintenance')}>🔧 维保中</option><option value="warning" ${selSt('warning')}>⚠️ 需检修</option>
         <option value="overdue" ${selSt('overdue')}>🚨 逾期未检</option><option value="scrapped" ${selSt('scrapped')}>❌ 已报废</option>
@@ -2962,11 +3150,14 @@ function showAssetModal(code = null) {
     </div>`,
     `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
      <button class="btn btn-primary" onclick="${a?'saveAssetEdit(\''+a.code+'\')':'createAsset()'}">💾 保存</button>`);
+  // 弹窗打开后自动计算状态
+  setTimeout(autoCalcAssetStatus, 50);
 }
 
 function createAsset() {
   const name = document.getElementById('astName').value.trim();
   if (!name) { showToast('请输入设备名称', 'error'); return; }
+  autoCalcAssetStatus(); // 保存前自动计算状态
   const code = 'HSJ-ZC-' + String(nextAssetId).padStart(4, '0'); nextAssetId++;
   const cycleType = document.getElementById('astCycleType').value;
   const cycleDaysMap = { daily:1, weekly:7, monthly:30, quarterly:90, semiannual:180, annual:365 };
@@ -2988,11 +3179,14 @@ function createAsset() {
   });
   closeModal(); refreshAll();
   showToast(`✅ 设备 ${code} 添加成功`, 'success');
+  // 自动显示二维码，方便用户立即打印或扫码
+  setTimeout(() => { showQRCode(code); }, 1500);
 }
 
 function saveAssetEdit(code) {
   const a = assets.find(a => a.code === code);
   if (!a) return;
+  autoCalcAssetStatus(); // 保存前自动计算状态
   a.name = document.getElementById('astName').value.trim();
   a.cat = document.getElementById('astCat').value;
   a.loc = document.getElementById('astLoc').value;
@@ -3009,6 +3203,131 @@ function saveAssetEdit(code) {
   a.status = document.getElementById('astStatus').value;
   closeModal(); refreshAll();
   showToast('✅ 设备信息已更新', 'success');
+}
+
+// ============ 设备报废 ============
+function showScrapAssetModal() {
+  var activeAssets = assets.filter(function(a) { return a.status !== 'scrapped'; });
+  if (activeAssets.length === 0) { showToast('没有可报废的设备', 'warning'); return; }
+  
+  var options = activeAssets.map(function(a) {
+    return '<option value="' + a.code + '">' + esc(a.code) + ' — ' + esc(a.name) + ' (' + esc(a.loc) + ')</option>';
+  }).join('');
+  
+  openModal('🗑️ 设备报废',
+    '<div style="display:flex;flex-direction:column;gap:14px;">' +
+      '<div class="form-group"><label>选择要报废的设备</label>' +
+        '<select id="scrapAssetSelect" style="width:100%;padding:10px;border:1px solid #d0d5dd;border-radius:8px;font-size:14px;">' + options + '</select>' +
+      '</div>' +
+      '<div class="form-group"><label>报废原因</label>' +
+        '<textarea id="scrapReason" placeholder="请填写报废原因..." style="width:100%;padding:12px;border:1px solid #d0d5dd;border-radius:8px;font-size:14px;min-height:80px;resize:vertical;font-family:inherit;"></textarea>' +
+      '</div>' +
+      '<div style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:12px;font-size:13px;color:#e65100;">⚠️ 设备报废后将从巡检列表中移除，此操作不可撤销。</div>' +
+    '</div>',
+    '<button class="btn btn-secondary" onclick="closeModal()">取消</button>' +
+    '<button class="btn btn-danger" onclick="confirmScrapAsset()">✅ 确认报废</button>');
+}
+function confirmScrapAsset() {
+  var code = document.getElementById('scrapAssetSelect').value;
+  var reason = document.getElementById('scrapReason').value.trim();
+  if (!reason) { showToast('请填写报废原因', 'warning'); return; }
+  
+  var a = assets.find(function(a) { return a.code === code; });
+  if (!a) { showToast('设备未找到', 'error'); return; }
+  
+  a.status = 'scrapped';
+  a.scrapReason = reason;
+  a.scrapTime = Date.now();
+  
+  closeModal(); refreshAll();
+  showToast('✅ 设备 ' + esc(code) + ' 已报废', 'success');
+}
+
+// ============ 巡检任务列表 ============
+function showInspectionTaskList() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var overdueTasks = [];
+  var pendingTasks = [];
+  var todayTasks = [];
+  
+  assets.forEach(function(a) {
+    if (a.status === 'scrapped' || a.status === 'maintenance') return;
+    if (!a.nextInspection) return;
+    var next = new Date(a.nextInspection); next.setHours(0,0,0,0);
+    var diffDays = Math.ceil((next.getTime() - today.getTime()) / (1000*60*60*24));
+    
+    var task = {
+      code: a.code,
+      name: a.name,
+      loc: a.loc,
+      cat: a.cat,
+      nextInspection: a.nextInspection,
+      lastInspection: a.lastInspection || '—',
+      cycle: a.cycle,
+      diffDays: diffDays,
+      status: diffDays < 0 ? 'overdue' : (diffDays <= 7 ? 'pending' : 'normal')
+    };
+    
+    if (diffDays < 0) {
+      overdueTasks.push(task);
+    } else if (diffDays <= 7) {
+      pendingTasks.push(task);
+    } else if (diffDays <= 30) {
+      todayTasks.push(task);
+    }
+  });
+  
+  var html = '<div style="padding:10px 0;">';
+  
+  // 逾期任务
+  if (overdueTasks.length > 0) {
+    html += '<div style="background:#ffebee;border:1px solid #ffcdd2;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-weight:600;color:#c62828;margin-bottom:8px;font-size:14px;">🚨 逾期未检（' + overdueTasks.length + '台）</div>';
+    overdueTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
+    overdueTasks.forEach(function(t) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ffcdd2;font-size:13px;">' +
+        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+        '<span style="color:#c62828;font-weight:600;white-space:nowrap;font-size:12px;">逾期 ' + Math.abs(t.diffDays) + '天</span>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+  
+  // 待巡检（7天内）
+  if (pendingTasks.length > 0) {
+    html += '<div style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-weight:600;color:#e65100;margin-bottom:8px;font-size:14px;">🔔 待巡检（7天内，' + pendingTasks.length + '台）</div>';
+    pendingTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
+    pendingTasks.forEach(function(t) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ffe0b2;font-size:13px;">' +
+        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+        '<span style="color:#e65100;font-weight:600;white-space:nowrap;font-size:12px;">' + (t.diffDays === 0 ? '今天' : t.diffDays + '天后') + '</span>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+  
+  // 近30天任务
+  if (todayTasks.length > 0) {
+    html += '<div style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-weight:600;color:#2e7d32;margin-bottom:8px;font-size:14px;">📅 近期巡检（30天内，' + todayTasks.length + '台）</div>';
+    todayTasks.sort(function(a,b) { return a.diffDays - b.diffDays; });
+    todayTasks.forEach(function(t) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #c8e6c9;font-size:13px;">' +
+        '<div><strong>' + esc(t.code) + '</strong> ' + esc(t.name) + '<br><span style="color:#888;font-size:12px;">' + esc(t.loc) + ' · ' + esc(t.cat) + ' · 下次:' + t.nextInspection + '</span></div>' +
+        '<span style="color:#2e7d32;font-weight:500;white-space:nowrap;font-size:12px;">' + t.diffDays + '天后</span>' +
+      '</div>';
+    });
+    html += '</div>';
+  }
+  
+  if (overdueTasks.length === 0 && pendingTasks.length === 0 && todayTasks.length === 0) {
+    html += '<div style="text-align:center;padding:40px;color:#888;">✅ 暂无待巡检任务<br><span style="font-size:12px;color:#aaa;">所有设备巡检日期正常</span></div>';
+  }
+  
+  html += '</div>';
+  
+  openModal('📋 巡检任务清单', html, '<button class="btn btn-primary" onclick="closeModal()">关闭</button>');
 }
 
 function editAsset(code) { showAssetModal(code); }
@@ -5215,6 +5534,44 @@ function deleteKnowledge(id) {
 }
 
 // ============ DASHBOARD STATS ============
+function updateInspectionDashboardStats() {
+  const elOverdue = document.getElementById('statInspectOverdue');
+  const elPending = document.getElementById('statInspectPending');
+  const elTotal = document.getElementById('statInspectTotal');
+  const elDone = document.getElementById('statInspectDone');
+  if (!elOverdue && !elPending && !elTotal && !elDone) return;
+  
+  const today = new Date().toISOString().substring(0,10);
+  const overdue = assets.filter(a => a.status === 'overdue' && a.status !== 'scrapped').length;
+  const pending = assets.filter(a => a.status === 'pending_inspection' && a.status !== 'scrapped').length;
+  const total = assets.filter(a => a.status !== 'scrapped').length;
+  
+  // 本月巡检完成数（从 inspectionHistory 和 fixedAssetInspections 统计）
+  const now = new Date();
+  const thisMonthStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  let inspDone = 0;
+  assets.forEach(a => {
+    if (a.inspectionHistory) {
+      inspDone += a.inspectionHistory.filter(h => h.date && h.date.startsWith(thisMonthStr)).length;
+    }
+  });
+  inspDone += fixedAssetInspections.filter(r => {
+    const d = new Date(r.time);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  }).length;
+  
+  if (elOverdue) elOverdue.textContent = overdue;
+  if (elPending) elPending.textContent = pending;
+  if (elTotal) elTotal.textContent = total;
+  if (elDone) elDone.textContent = inspDone;
+  
+  // 更新巡检覆盖率趋势
+  const covEl = document.querySelector('.stat-card.green .stat-trend');
+  if (covEl && total > 0) {
+    covEl.textContent = '覆盖率 ' + Math.round(inspDone / Math.max(total, 1) * 100) + '%';
+  }
+}
+
 function updateDashboardStats() {
   const now = new Date();
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -5302,6 +5659,7 @@ function updateDashboardStats() {
   try { document.getElementById('dispatchOrdersBadge').textContent = processingCount; } catch(e) {}
 
   // Redraw dynamic charts
+  updateInspectionDashboardStats();
   drawMonthlyChart();
   drawCategoryChart();
   renderRecentOrders();
@@ -5507,7 +5865,29 @@ function showToast(msg, type='success') {
 }
 
 // ============ REFRESH ALL ============
+// ============ 全局设备状态自动计算 ============
+function recalcAllAssetStatuses() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  assets.forEach(function(a) {
+    // 特殊状态不覆盖：维保中/需检修/已报废
+    if (a.status === 'maintenance' || a.status === 'warning' || a.status === 'scrapped') return;
+    if (!a.nextInspection) return;
+
+    var next = new Date(a.nextInspection); next.setHours(0,0,0,0);
+    var diffDays = Math.ceil((next.getTime() - today.getTime()) / (1000*60*60*24));
+
+    if (diffDays < 0) {
+      a.status = 'overdue'; // 🚨 逾期未检
+    } else if (diffDays <= 7) {
+      a.status = 'pending_inspection'; // 🔔 待巡检（7天内到期）
+    } else if (a.lastInspection) {
+      a.status = 'normal'; // ✅ 正常
+    }
+  });
+}
+
 function refreshAll() {
+  recalcAllAssetStatuses(); // 全局自动计算设备状态
   renderRecentOrders();
   filterOrders();
   renderDispatchPage();
@@ -5607,7 +5987,7 @@ function loadAllData() {
     if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
     if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
     if (data.knowledge) knowledge = data.knowledge;
-    if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+    if (data.users) { users = data.users; currentUser = resolveCurrentUser(data.currentUserId); }
     if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
     if (data.roles) { roles = data.roles; }
     // 恢复计数器
@@ -5698,7 +6078,7 @@ function importBackup(input) {
       if (data.fixedAssetCategories) fixedAssetCategories = data.fixedAssetCategories;
       if (data.knowledge) knowledge = data.knowledge;
       if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
-      if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+      if (data.users) { users = data.users; currentUser = resolveCurrentUser(data.currentUserId); }
       if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
       if (data.roles) { roles = data.roles; }
       // Restore counters
@@ -5916,7 +6296,35 @@ async function handleLogin() {
   }
 
   // 先找到用户
-  const user = users.find(u => u.name === username);
+  var user = users.find(u => u.name === username);
+  var isTechLogin = false;
+  
+  // 如果 users 中没找到，尝试在维修师傅中查找
+  if (!user) {
+    var tech = technicians.find(function(t) { return t.username === username; });
+    if (tech) {
+      var hash = await sha256(password);
+      if (tech.password === hash) {
+        // 维修师傅认证成功，创建虚拟用户对象
+        user = {
+          id: 'T' + tech.id,
+          name: tech.name,
+          role: '工程人员',
+          phone: tech.phone,
+          email: '',
+          password: tech.password,
+          created: tech.hireDate || '',
+          status: 'active',
+          _techId: tech.id,  // 标记为师傅来源
+          _techData: tech     // 保留完整师傅数据
+        };
+        isTechLogin = true;
+      } else {
+        recordFailedAttempt(username, errorEl);
+        return;
+      }
+    }
+  }
   if (!user) {
     recordFailedAttempt(username, errorEl);
     return;
@@ -5960,7 +6368,9 @@ async function handleLogin() {
     role: user.role,
     avatar: user.avatar || '👤',
     status: user.status,
-    loginAt: Date.now()
+    loginAt: Date.now(),
+    _techId: user._techId || null,
+    _techUsername: isTechLogin ? username : null
   };
   
   // 记住我：存到 localStorage，否则存到 sessionStorage
@@ -5998,6 +6408,36 @@ function recordFailedAttempt(username, errorEl) {
   } else {
     errorEl.textContent = `❌ 用户名或密码错误（还可尝试 ${remaining} 次）`;
   }
+}
+
+// 根据 userId 解析 currentUser，支持维修师傅用户（ID 以 'T' 开头）
+function resolveCurrentUser(currentUserId) {
+  if (currentUserId && typeof currentUserId === 'string' && currentUserId.startsWith('T')) {
+    // 维修师傅用户：从 technicians 中查找
+    var techId = parseInt(currentUserId.substring(1));
+    var tech = technicians.find(function(t) { return t.id === techId; });
+    if (tech) {
+      return {
+        id: 'T' + tech.id,
+        name: tech.name,
+        role: '工程人员',
+        phone: tech.phone || '',
+        email: '',
+        password: tech.password || '',
+        created: tech.hireDate || '',
+        status: 'active',
+        _techId: tech.id,
+        _techData: tech
+      };
+    }
+    // 师傅已被删除，返回 null
+    return null;
+  }
+  // 普通用户：从 users 中查找
+  return (currentUserId ? users.find(u => u.id === currentUserId && u.status === 'active') : null)
+    || users.find(u => u.role === '超级管理员' && u.status === 'active')
+    || users.find(u => u.status === 'active')
+    || users[0];
 }
 
 function handleLogout(silent) {
@@ -6042,6 +6482,27 @@ function checkLoginSession() {
     
     // 先尝试从 users 数组中查找最新数据（如已从服务器加载）
     if (users && users.length > 0) {
+      if (data._techId) {
+        // 维修师傅用户：从 technicians 中查找
+        var techData = technicians.find(function(t) { return t.id === data._techId; });
+        if (techData) {
+          currentUser = {
+            id: 'T' + techData.id,
+            name: techData.name,
+            role: '工程人员',
+            phone: techData.phone || '',
+            email: '',
+            password: techData.password || '',
+            created: techData.hireDate || '',
+            status: 'active',
+            _techId: techData.id,
+            _techData: techData
+          };
+          return true;
+        }
+        // 师傅已被删除
+        return false;
+      }
       const latestUser = users.find(u => u.id === data.userId);
       if (latestUser) {
         if (latestUser.status !== 'active') return false;
@@ -6056,8 +6517,14 @@ function checkLoginSession() {
       name: data.name,
       role: data.role,
       avatar: data.avatar || '👤',
-      status: data.status
+      status: data.status,
+      _techId: data._techId || null
     };
+    // 如果恢复的是维修师傅账号且有 techId，尝试关联 technicians 数据
+    if (data._techId && technicians && technicians.length > 0) {
+      var techData = technicians.find(function(t) { return t.id === data._techId; });
+      if (techData) currentUser._techData = techData;
+    }
     return true;
   } catch(e) {
     return false;
@@ -6372,15 +6839,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Step 3: 服务器数据加载完成后，重新验证登录（防止用户被远程禁用）
-  if (quickLogin && users && users.length > 0) {
-    const latestUser = users.find(u => u.id === currentUser?.id);
-    if (!latestUser || latestUser.status !== 'active') {
-      // 当前用户已被删除或禁用 → 强制登出
+  if (quickLogin && currentUser) {
+    var reauthOk = false;
+    if (currentUser._techId) {
+      // 维修师傅用户：在 technicians 中验证
+      var tech = technicians.find(function(t) { return t.id === currentUser._techId; });
+      if (tech) {
+        currentUser = {
+          id: 'T' + tech.id,
+          name: tech.name,
+          role: '工程人员',
+          phone: tech.phone || '',
+          email: '',
+          password: tech.password || '',
+          created: tech.hireDate || '',
+          status: 'active',
+          _techId: tech.id,
+          _techData: tech
+        };
+        reauthOk = true;
+      }
+    } else if (users && users.length > 0) {
+      var latestUser = users.find(function(u) { return u.id === currentUser.id && u.status === 'active'; });
+      if (latestUser) {
+        currentUser = latestUser;
+        reauthOk = true;
+      }
+    }
+    if (!reauthOk) {
       handleLogout(true);
       return;
     }
-    // 用服务器最新数据更新 currentUser
-    currentUser = latestUser;
   }
 
   // Step 4: 已登录 → 初始化主界面
@@ -6412,7 +6901,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 路由前缀: #/m/asset/{code}
 function handleMobileHashRoute() {
   const hash = location.hash;
-  // 支持新旧两种格式:
+  // 移动端首页 — 设备搜索/浏览
+  if (hash === '#/m' || hash === '#/m/' || hash.match(/^#\/m(\?.*)?$/)) {
+    loadAllData();
+    renderMobileHomePage();
+    return true;
+  }
+  // 巡检页面路由:
   // 旧: #/m/asset/CODE
   // 新: #/m/inspect/CODE?d=BASE64DATA
   let match = hash.match(/^#\/m\/inspect\/(.+)$/);
@@ -6443,6 +6938,195 @@ window.addEventListener('hashchange', () => {
   handleMobileHashRoute();
 });
 
+// ============ 📱 移动端设备搜索首页 ============
+function renderMobileHomePage() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+  const mainEl = document.querySelector('.app-container') || document.querySelector('.main-content') || document.body;
+
+  // 搜索和筛选状态
+  var searchTerm = '';
+  var filterStatus = 'all';
+  var filterCat = 'all';
+
+  function escFn(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function renderList() {
+    var container = document.getElementById('mDeviceList');
+    if (!container) return;
+
+    var activeAssets = assets.filter(function(a) { return a.status !== 'scrapped'; });
+
+    // 搜索
+    if (searchTerm) {
+      var q = searchTerm.toLowerCase();
+      activeAssets = activeAssets.filter(function(a) {
+        return (a.code && a.code.toLowerCase().indexOf(q) > -1)
+          || (a.name && a.name.toLowerCase().indexOf(q) > -1)
+          || (a.loc && a.loc.toLowerCase().indexOf(q) > -1)
+          || (a.cat && a.cat.toLowerCase().indexOf(q) > -1);
+      });
+    }
+
+    // 状态筛选
+    if (filterStatus !== 'all') {
+      activeAssets = activeAssets.filter(function(a) { return a.status === filterStatus; });
+    }
+
+    // 类别筛选
+    if (filterCat !== 'all') {
+      activeAssets = activeAssets.filter(function(a) { return a.cat === filterCat; });
+    }
+
+    // 排序：逾期 > 待巡检 > 正常，按下次巡检日期
+    activeAssets.sort(function(a, b) {
+      var order = { overdue: 0, pending_inspection: 1, warning: 2, maintenance: 3, normal: 4 };
+      var oa = order[a.status] !== undefined ? order[a.status] : 9;
+      var ob = order[b.status] !== undefined ? order[b.status] : 9;
+      if (oa !== ob) return oa - ob;
+      if (a.nextInspection && b.nextInspection) return a.nextInspection.localeCompare(b.nextInspection);
+      return 0;
+    });
+
+    var statusLabels = {
+      overdue: '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🚨 逾期</span>',
+      pending_inspection: '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🔔 待巡检</span>',
+      normal: '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">✅ 正常</span>',
+      warning: '<span style="background:#fff3e0;color:#e65100;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">⚠️ 需检修</span>',
+      maintenance: '<span style="background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🔧 维保中</span>'
+    };
+
+    if (activeAssets.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#999;"><div style="font-size:48px;margin-bottom:12px;">📭</div><div>没有找到匹配的设备</div><div style="font-size:12px;margin-top:4px;color:#ccc;">请尝试其他搜索条件</div></div>';
+      document.getElementById('mResultCount').textContent = '0 台';
+      return;
+    }
+
+    document.getElementById('mResultCount').textContent = activeAssets.length + ' 台';
+    var html = '';
+    activeAssets.forEach(function(a) {
+      var b64 = '';
+      try {
+        var data = { code: a.code, name: a.name, cat: a.cat, loc: a.loc, model: a.model, date: a.date, cycle: a.cycle };
+        var json = unescape(encodeURIComponent(JSON.stringify(data)));
+        b64 = btoa(json);
+      } catch(e) {}
+
+      var url = '#/m/inspect/' + encodeURIComponent(a.code) + '?d=' + encodeURIComponent(b64);
+      var nextInfo = a.nextInspection
+        ? '<span style="font-size:11px;color:#888;">📅 下次巡检: ' + a.nextInspection + '</span>'
+        : '';
+      var lastInfo = a.lastInspection
+        ? '<span style="font-size:11px;color:#888;"> · 上次: ' + a.lastInspection + '</span>'
+        : '';
+
+      html += '<a href="' + url + '" style="display:block;background:#fff;margin:0 16px 8px;border-radius:10px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,0.06);text-decoration:none;color:inherit;transition:transform 0.15s;border-left:4px solid ' + (a.status === 'overdue' ? '#f44336' : a.status === 'pending_inspection' ? '#ff9800' : '#4caf50') + ';">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-weight:600;font-size:15px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escFn(a.name) + '</div>'
+        + '<div style="font-size:12px;color:#888;margin-top:2px;">' + escFn(a.code) + ' · ' + escFn(a.loc) + '</div>'
+        + '<div style="margin-top:4px;">' + nextInfo + lastInfo + '</div>'
+        + '</div>'
+        + '<div style="flex-shrink:0;margin-left:8px;">' + (statusLabels[a.status] || '<span style="font-size:11px;color:#999;">未知</span>') + '</div>'
+        + '</div>'
+        + '<div style="margin-top:6px;display:flex;justify-content:flex-end;font-size:12px;color:#1a73e8;font-weight:500;">📋 巡检 &rarr;</div>'
+        + '</a>';
+    });
+    container.innerHTML = html;
+  }
+
+  // 统计数
+  var today = new Date(); today.setHours(0,0,0,0);
+  var totalCount = assets.filter(function(a) { return a.status !== 'scrapped'; }).length;
+  var overdueCount = assets.filter(function(a) { return a.status === 'overdue'; }).length;
+  var pendingCount = assets.filter(function(a) { return a.status === 'pending_inspection'; }).length;
+
+  // 类别列表
+  var cats = [];
+  assets.forEach(function(a) { if (a.cat && cats.indexOf(a.cat) === -1) cats.push(a.cat); });
+  cats.sort();
+  var catOptions = cats.map(function(c) { return '<option value="' + escFn(c) + '">' + escFn(c) + '</option>'; }).join('');
+
+  mainEl.innerHTML = '<style>'
+    + '.m-home-page{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#f5f7fa;min-height:100vh;padding-bottom:60px;}'
+    + '.m-home-header{background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff;padding:20px 16px 24px;}'
+    + '.m-home-header h2{margin:0;font-size:20px;font-weight:600;}'
+    + '.m-home-header .sub{font-size:13px;opacity:0.85;margin-top:4px;}'
+    + '.m-search-box{position:relative;margin:16px 16px 0;}'
+    + '.m-search-box input{width:100%;padding:12px 16px 12px 40px;border:none;border-radius:24px;font-size:15px;background:rgba(255,255,255,0.15);color:#fff;outline:none;box-sizing:border-box;}'
+    + '.m-search-box input::placeholder{color:rgba(255,255,255,0.6);}'
+    + '.m-search-box .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;}'
+    + '.m-stats-row{display:flex;gap:8px;padding:12px 16px 0;flex-wrap:wrap;}'
+    + '.m-stat-chip{flex:1;min-width:80px;text-align:center;padding:12px 8px;background:#fff;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.06);cursor:pointer;transition:all 0.2s;border:2px solid transparent;}'
+    + '.m-stat-chip.active{border-color:#1a73e8;background:#e8f0fe;}'
+    + '.m-stat-chip .num{font-size:22px;font-weight:700;}'
+    + '.m-stat-chip .label{font-size:11px;color:#888;margin-top:2px;}'
+    + '.m-stat-chip.overdue .num{color:#c62828;}'
+    + '.m-stat-chip.pending .num{color:#e65100;}'
+    + '.m-stat-chip.normal .num{color:#2e7d32;}'
+    + '.m-stat-chip.all .num{color:#333;}'
+    + '.m-filter-row{display:flex;padding:8px 16px;align-items:center;gap:6px;}'
+    + '.m-filter-row select{flex:1;padding:8px 12px;border:1px solid #d0d5dd;border-radius:8px;font-size:13px;background:#fff;color:#555;}'
+    + '.m-result-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 16px 4px;font-size:12px;color:#888;}'
+    + '.m-device-list{padding-bottom:80px;}'
+    + '.m-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e8e8e8;padding:8px 0 env(safe-area-inset-bottom,8px);z-index:1000;}'
+    + '.m-bottom-nav a{flex:1;text-align:center;text-decoration:none;color:#888;font-size:11px;padding:4px 0;}'
+    + '.m-bottom-nav a.active{color:#1a73e8;}'
+    + '.m-bottom-nav a .icon{font-size:20px;display:block;}'
+    + '</style>'
+    + '<div class="m-home-page">'
+    + '<div class="m-home-header">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+    + '<div><h2>🔧 设备巡检</h2><div class="sub">扫码巡检 · 实时上传 · 状态追踪</div></div>'
+    + '<a href="' + location.origin + location.pathname + '" style="color:#fff;font-size:12px;text-decoration:none;opacity:0.8;background:rgba(255,255,255,0.15);padding:6px 12px;border-radius:16px;">🏠 系统</a>'
+    + '</div>'
+    + '<div class="m-search-box">'
+    + '<span class="search-icon">🔍</span>'
+    + '<input type="text" id="mHomeSearch" placeholder="搜索设备编号、名称、位置..." oninput="window._mHomeSearch(this.value)">'
+    + '</div>'
+    + '</div>'
+    + '<div class="m-stats-row">'
+    + '<div class="m-stat-chip all active" id="mStatAll" onclick="window._mHomeFilter(\'all\')"><div class="num">' + totalCount + '</div><div class="label">全部设备</div></div>'
+    + '<div class="m-stat-chip overdue" id="mStatOverdue" onclick="window._mHomeFilter(\'overdue\')"><div class="num">' + overdueCount + '</div><div class="label">逾期未检</div></div>'
+    + '<div class="m-stat-chip pending" id="mStatPending" onclick="window._mHomeFilter(\'pending_inspection\')"><div class="num">' + pendingCount + '</div><div class="label">待巡检</div></div>'
+    + '<div class="m-stat-chip normal" id="mStatNormal" onclick="window._mHomeFilter(\'normal\')"><div class="num">' + (totalCount - overdueCount - pendingCount) + '</div><div class="label">正常</div></div>'
+    + '</div>'
+    + '<div class="m-filter-row">'
+    + '<select id="mHomeCatFilter" onchange="window._mHomeCatFilter(this.value)"><option value="all">📂 全部类别</option>' + catOptions + '</select>'
+    + '</div>'
+    + '<div class="m-result-bar"><span id="mResultCount">' + totalCount + ' 台</span><span style="font-size:11px;color:#1a73e8;">📱 扫码或点击设备巡检</span></div>'
+    + '<div class="m-device-list" id="mDeviceList"></div>'
+    + '</div>'
+    + '<div class="m-bottom-nav">'
+    + '<a href="#/m/" class="active"><span class="icon">📋</span>设备列表</a>'
+    + '<a href="' + location.origin + location.pathname + '"><span class="icon">🏠</span>系统首页</a>'
+    + '</div>';
+
+  // 暴露搜索和筛选函数
+  window._mHomeSearch = function(val) {
+    searchTerm = val;
+    renderList();
+  };
+  window._mHomeFilter = function(status) {
+    // 恢复搜索框
+    document.getElementById('mHomeSearch').value = '';
+    searchTerm = '';
+    filterStatus = status;
+    // 更新 active 样式
+    ['all','overdue','pending_inspection','normal'].forEach(function(s) {
+      var el = document.getElementById(s === 'pending_inspection' ? 'mStatPending' : s === 'overdue' ? 'mStatOverdue' : s === 'normal' ? 'mStatNormal' : 'mStatAll');
+      if (el) el.classList.toggle('active', s === status);
+    });
+    renderList();
+  };
+  window._mHomeCatFilter = function(cat) {
+    filterCat = cat;
+    renderList();
+  };
+
+  // 初始化渲染
+  setTimeout(renderList, 50);
+}
+
 function renderMobileInspectPage(code, assetData) {
   // 优先用 localStorage 查设备，其次用 URL 传入的数据
   let a = assets.find(a => a.code === code) || fixedAssets.find(a => a.code === code);
@@ -6468,18 +7152,16 @@ function renderMobileInspectPage(code, assetData) {
   document.getElementById('loginOverlay').classList.add('hidden');
   const mainEl = document.querySelector('.app-container') || document.querySelector('.main-content') || document.body;
   
-  // 检查是否为工程人员
-  const isEngineer = currentUser && currentUser.role === '工程人员';
-  
-  if (!isEngineer) {
-    // 非工程人员 → 显示乱码页面
-    renderGarbledPage(mainEl, code, a);
-    return;
-  }
-  
   // 保存设备数据用于提交后重新渲染
   window._mInspectCode = code;
   window._mInspectAssetData = a;
+  
+  // 检查是否为工程人员（用于UI展示，不拦截）
+  const isEngineer = currentUser && currentUser.role === '工程人员';
+  // 标记移动端工程验证状态（扫码进入时默认未验证）
+  if (!window._mEngineerVerified) {
+    window._mEngineerVerified = !!isEngineer;  // 如果已登录且是工程人员则自动通过
+  }
   
   // ====== 以下是工程人员正常巡检页面 ======
   // 最近的巡检记录
@@ -6526,7 +7208,9 @@ function renderMobileInspectPage(code, assetData) {
     @keyframes mFadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
   </style>
   <div class="m-inspect-page">
-    <div class="m-engineer-bar">🔧 工程人员巡检模式 · ${esc(currentUser.name)}</div>
+    <div class="m-engineer-bar" id="mEngineerBar" style="${isEngineer ? 'background:#e8f5e9;color:#2e7d32;border-bottom:1px solid #c8e6c9;' : 'background:#fff3e0;color:#e65100;border-bottom:1px solid #ffe0b2;'}">
+      ${isEngineer ? '🔧 工程人员巡检模式 · ' + esc(currentUser.name) : '⚠️ 需要验证工程身份 · <a href="javascript:void(0)" onclick="mShowEngVerifyModal()" style="color:#1a73e8;text-decoration:underline;font-weight:600;">点击验证</a>'}
+    </div>
     <div class="m-inspect-header">
       <h2>${a ? esc(a.name) : '未知设备'}</h2>
       <div class="code">${a ? esc(a.code) : code}</div>
@@ -6575,7 +7259,7 @@ function renderMobileInspectPage(code, assetData) {
       <input class="m-input" id="mInspector" placeholder="请输入巡检人姓名" style="min-height:auto;" value="${esc(currentUser.name)}">
     </div>
     
-    <button class="m-submit-btn" onclick="mSubmitInspection('${code}')">📤 提交巡检记录</button>
+    <button class="m-submit-btn" onclick="mSubmitInspection('${code}')" style="${isEngineer ? '' : 'background:linear-gradient(135deg,#ff9800,#e65100);'}">${isEngineer ? '📤 提交巡检记录' : '🔐 验证身份并提交'}</button>
     ` : ''}
     
     ${history.length > 0 ? `
@@ -6729,8 +7413,26 @@ async function mVerifyEngineer() {
   }
   // 使用 SHA-256 哈希
   const hash = await sha256(password);
-  // 查找匹配的工程人员
-  const eng = users.find(u => u.name === username && u.role === '工程人员' && u.status === 'active' && u.password === hash);
+  // 查找匹配的工程人员（先在 users 中查找，再在 technicians 中查找）
+  var eng = users.find(u => u.name === username && u.role === '工程人员' && u.status === 'active' && u.password === hash);
+  if (!eng) {
+    // 尝试从维修师傅中查找
+    var tech = technicians.find(function(t) { return t.username === username && t.password === hash; });
+    if (tech) {
+      eng = {
+        id: 'T' + tech.id,
+        name: tech.name,
+        role: '工程人员',
+        phone: tech.phone || '',
+        email: '',
+        password: tech.password,
+        created: tech.hireDate || '',
+        status: 'active',
+        _techId: tech.id,
+        _techData: tech
+      };
+    }
+  }
   if (!eng) {
     errEl.textContent = '验证失败，仅限工程人员访问';
     errEl.style.display = 'block';
@@ -6743,6 +7445,119 @@ async function mVerifyEngineer() {
   const assetData = window._mInspectAssetData;
   if (code) {
     renderMobileInspectPage(code, assetData);
+  }
+}
+
+// ============ 巡检页工程身份验证弹窗 ============
+window._mEngVerifyCallback = null;
+function mShowEngVerifyModal(onSuccess) {
+  // 如果已经验证过，直接回调
+  if (window._mEngineerVerified) { if (onSuccess) onSuccess(); return; }
+  window._mEngVerifyCallback = onSuccess || null;
+  
+  // 移除已有弹窗
+  var existing = document.getElementById('mEngVerifyModal');
+  if (existing) existing.remove();
+  
+  var modal = document.createElement('div');
+  modal.id = 'mEngVerifyModal';
+  modal.innerHTML = '<style>\
+    #mEngVerifyModal{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:20px;}\
+    #mEngVerifyModal .m-ev-box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);}\
+    #mEngVerifyModal .m-ev-icon{font-size:48px;margin-bottom:12px;}\
+    #mEngVerifyModal .m-ev-title{font-size:18px;font-weight:600;color:#333;margin-bottom:4px;}\
+    #mEngVerifyModal .m-ev-sub{font-size:13px;color:#888;margin-bottom:20px;}\
+    #mEngVerifyModal .m-ev-input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:15px;margin-bottom:10px;box-sizing:border-box;font-family:inherit;outline:none;transition:border-color 0.2s;}\
+    #mEngVerifyModal .m-ev-input:focus{border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,0.1);}\
+    #mEvError{color:#f44336;font-size:12px;margin-top:-6px;margin-bottom:12px;display:none;text-align:left;padding-left:4px;}\
+    #mEngVerifyModal .m-ev-btns{display:flex;gap:10px;margin-top:4px;}\
+    #mEngVerifyModal .m-ev-btns button{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;transition:opacity 0.2s;}\
+    #mEngVerifyModal .m-ev-btns button:active{opacity:0.7;}\
+    #mEngVerifyModal .m-ev-cancel{background:#f5f5f5;color:#666;}\
+    #mEngVerifyModal .m-ev-ok{background:linear-gradient(135deg,#1a73e8,#0d47a1);color:#fff;\
+  }</style>\
+  <div class="m-ev-box">\
+    <div class="m-ev-icon">🔧</div>\
+    <div class="m-ev-title">工程身份验证</div>\
+    <div class="m-ev-sub">提交巡检记录前需验证工程人员身份</div>\
+    <input id="mEvUser" class="m-ev-input" placeholder="用户名" autocomplete="username">\
+    <input id="mEvPass" class="m-ev-input" type="password" placeholder="密码" autocomplete="current-password">\
+    <div id="mEvError"></div>\
+    <div class="m-ev-btns">\
+      <button class="m-ev-cancel" onclick="document.getElementById(\'mEngVerifyModal\').remove()">取消</button>\
+      <button class="m-ev-ok" onclick="mDoEngVerify()">验证并提交</button>\
+    </div>\
+  </div>';
+  document.body.appendChild(modal);
+  
+  // 绑定回车键
+  var passInput = document.getElementById('mEvPass');
+  if (passInput) {
+    passInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') mDoEngVerify();
+    });
+  }
+}
+async function mDoEngVerify() {
+  var username = document.getElementById('mEvUser').value.trim();
+  var password = document.getElementById('mEvPass').value;
+  var errEl = document.getElementById('mEvError');
+  if (!username || !password) {
+    errEl.textContent = '⚠️ 请输入用户名和密码';
+    errEl.style.display = 'block';
+    return;
+  }
+  // SHA-256 验证
+  var hash = await sha256(password);
+  // 查找工程人员（先在 users 中查，再在 technicians 中查）
+  var eng = users.find(function(u) { return u.name === username && u.role === '工程人员' && u.status === 'active' && u.password === hash; });
+  if (!eng) {
+    var tech = technicians.find(function(t) { return t.username === username && t.password === hash; });
+    if (tech) {
+      eng = {
+        id: 'T' + tech.id,
+        name: tech.name,
+        role: '工程人员',
+        phone: tech.phone || '',
+        email: '',
+        password: tech.password,
+        created: tech.hireDate || '',
+        status: 'active',
+        _techId: tech.id,
+        _techData: tech
+      };
+    }
+  }
+  if (!eng) {
+    errEl.textContent = '❌ 验证失败：用户名或密码错误，或非工程人员';
+    errEl.style.display = 'block';
+    return;
+  }
+  // 验证成功
+  window._mEngineerVerified = true;
+  currentUser = eng;
+  saveAllData();
+  mToast('✅ 身份验证通过！正在提交...');
+  // 关闭弹窗
+  var modal = document.getElementById('mEngVerifyModal');
+  if (modal) modal.remove();
+  // 更新顶部状态栏
+  var bar = document.getElementById('mEngineerBar');
+  if (bar) {
+    bar.style.background = '#e8f5e9';
+    bar.style.color = '#2e7d32';
+    bar.style.borderBottom = '1px solid #c8e6c9';
+    bar.innerHTML = '🔧 工程人员巡检模式 · ' + esc(eng.name);
+  }
+  // 更新巡检人默认值
+  var inspectorEl = document.getElementById('mInspector');
+  if (inspectorEl && !inspectorEl.value.trim()) {
+    inspectorEl.value = eng.name;
+  }
+  // 执行回调
+  if (window._mEngVerifyCallback) {
+    window._mEngVerifyCallback();
+    window._mEngVerifyCallback = null;
   }
 }
 
@@ -6817,15 +7632,28 @@ function mToast(msg) {
 }
 
 function mSubmitInspection(code) {
+  // 工程身份验证检查（未验证则弹出登录框）
+  if (!window._mEngineerVerified) {
+    mShowEngVerifyModal(function() {
+      // 验证通过后重新调用提交
+      mSubmitInspection(code);
+    });
+    return;
+  }
+  
   const inspector = document.getElementById('mInspector')?.value.trim();
   if (!inspector) { mToast('请填写巡检人姓名'); return; }
+  
+  const result = window._mResult;
+  const photos = [...window._mPhotos];
+  const notes = document.getElementById('mNotes')?.value.trim() || '';
   
   const record = {
     assetCode: code,
     time: Date.now(),
-    result: window._mResult,
-    notes: document.getElementById('mNotes')?.value.trim() || '',
-    photos: [...window._mPhotos],
+    result: result,
+    notes: notes,
+    photos: photos,
     inspector: inspector
   };
   
@@ -6833,11 +7661,15 @@ function mSubmitInspection(code) {
   
   // 更新设备的上次/下次巡检日期
   const a = assets.find(a => a.code === code);
+  let newStatus = 'normal';
   if (a) {
     const now = new Date();
     const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     a.lastInspection = dateStr;
-    a.status = window._mResult; // 同步更新设备状态
+    // 修正状态映射：巡检结果→设备状态
+    var statusMap = { normal:'normal', damaged:'warning', scrapped:'scrapped' };
+    newStatus = statusMap[result] || 'normal';
+    a.status = newStatus;
     
     // 计算下次巡检日期
     if (a.cycleDays) {
@@ -6848,19 +7680,26 @@ function mSubmitInspection(code) {
   
   saveAllData();
   
+  // 统计反馈信息
+  const resultLabel = result==='normal'?'✅ 正常':result==='damaged'?'⚠️ 需维修':'❌ 需报废';
+  
   // 清空表单
   window._mPhotos = [];
   window._mResult = 'normal';
   document.getElementById('mNotes').value = '';
   document.getElementById('mInspector').value = '';
   mRenderPhotos();
-  document.querySelectorAll('#mResultBtns .m-result-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('#mResultBtns .m-result-btn[data-v="normal"]').classList.add('active');
+  document.querySelectorAll('#mResultBtns .m-result-btn').forEach(function(b) { b.classList.remove('active'); });
+  var normalBtn = document.querySelector('#mResultBtns .m-result-btn[data-v="normal"]');
+  if (normalBtn) normalBtn.classList.add('active');
   
   // 更新巡检历史显示
   renderMobileInspectPage(code, window._mInspectAssetData || null);
   
-  mToast('✅ 巡检记录已提交！');
+  // 详细成功提示
+  var msgParts = ['设备: ' + code, '结果: ' + resultLabel];
+  if (photos.length > 0) msgParts.push('照片: ' + photos.length + '张');
+  mToast('✅ 巡检已提交！' + msgParts.join(' | '));
 }
 
 // ============ 移动端巡检页面 END ============
