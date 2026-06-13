@@ -464,6 +464,10 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
     <div class="nav-item" data-page="tracking"><span class="nav-icon">📍</span> 进度追踪</div>
     <div class="nav-section">工程系统管理</div>
     <div class="nav-item" data-page="assets"><span class="nav-icon">🏗️</span> 工程巡检管理</div>
+    <div class="nav-section">秩维系统管理</div>
+    <div class="nav-item" data-page="security"><span class="nav-icon">🛡️</span> 秩维系统管理</div>
+    <div class="nav-item" data-page="cleaning"><span class="nav-icon">🧹</span> 保洁系统管理</div>
+    <div class="nav-item" data-page="landscaping"><span class="nav-icon">🌿</span> 绿化系统管理</div>
     <div class="nav-section">库房管理</div>
     <div class="nav-item" data-page="warehouse"><span class="nav-icon">🏪</span> 库房管理</div>
     <div class="nav-item" data-page="fixedassets"><span class="nav-icon">📦</span> 固定资产管理</div>
@@ -853,6 +857,33 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
           </div>
         </div>
         <table class="data-table"><thead><tr><th>设备编号</th><th>设备名称</th><th>类别</th><th>位置</th><th>品牌/型号</th><th>安装日期</th><th>维保周期</th><th>状态</th><th>操作</th></tr></thead><tbody id="assetsTable"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE: 秩维系统管理 ==================== -->
+    <div class="page" id="page-security">
+      <div class="glass-card" style="padding:60px 28px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">🛡️</div>
+        <h3 style="margin-bottom:8px;color:var(--gray-800);">秩维系统管理</h3>
+        <p style="color:var(--gray-400);max-width:400px;margin:0 auto;">该模块正在建设中，敬请期待…</p>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE: 保洁系统管理 ==================== -->
+    <div class="page" id="page-cleaning">
+      <div class="glass-card" style="padding:60px 28px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">🧹</div>
+        <h3 style="margin-bottom:8px;color:var(--gray-800);">保洁系统管理</h3>
+        <p style="color:var(--gray-400);max-width:400px;margin:0 auto;">该模块正在建设中，敬请期待…</p>
+      </div>
+    </div>
+
+    <!-- ==================== PAGE: 绿化系统管理 ==================== -->
+    <div class="page" id="page-landscaping">
+      <div class="glass-card" style="padding:60px 28px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">🌿</div>
+        <h3 style="margin-bottom:8px;color:var(--gray-800);">绿化系统管理</h3>
+        <p style="color:var(--gray-400);max-width:400px;margin:0 auto;">该模块正在建设中，敬请期待…</p>
       </div>
     </div>
 
@@ -1299,7 +1330,7 @@ function navigateTo(page) {
   const titles = {
     dashboard:'📊 数据大屏',orders:'📋 工单管理',dispatch:'📬 派单管理','dispatch-orders':'📋 派单工单管理',reports:'📊 报表查询',owners:'👤 业主信息管理',
     repair:'🔧 业主报修','public-repair':'🏘️ 公区报修',tracking:'📍 进度追踪',
-    assets:'🏗️ 工程巡检管理',warehouse:'🏪 库房管理',fixedassets:'📦 固定资产管理',technicians:'👨‍🔧 维修师傅',
+    assets:'🏗️ 工程巡检管理',security:'🛡️ 秩维系统管理',cleaning:'🧹 保洁系统管理',landscaping:'🌿 绿化系统管理',warehouse:'🏪 库房管理',fixedassets:'📦 固定资产管理',technicians:'👨‍🔧 维修师傅',
     analytics:'📈 数据分析',knowledge:'📚 知识库',addresses:'📍 报修地址管理',zones:'🗺️ 公区管理',
     users:'👥 用户管理',repairtypes:'🔧 报修类型管理',assetcats:'🏷️ 资产类别管理',facats:'🏷️ 固定资产类别管理',backup:'💾 数据备份'
   };
@@ -4245,9 +4276,9 @@ let currentUser = null; // 登录后设置，初始为null
 
 // ============ ROLE-BASED ACCESS CONTROL ============
 const rolePermissions = {
-  '超级管理员': ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','assets','warehouse','fixedassets','analytics','knowledge','repairtypes','assetcats','facats','addresses','zones','technicians','backup','users'],
-  '客服员':       ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','analytics','knowledge'],
-  '工程人员':     ['dashboard','orders','dispatch','dispatch-orders','reports','repair','public-repair','tracking','analytics','knowledge','technicians'],
+  '超级管理员': ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','assets','security','cleaning','landscaping','warehouse','fixedassets','analytics','knowledge','repairtypes','assetcats','facats','addresses','zones','technicians','backup','users'],
+  '客服员':       ['dashboard','orders','dispatch','dispatch-orders','reports','owners','repair','public-repair','tracking','security','cleaning','landscaping','analytics','knowledge'],
+  '工程人员':     ['dashboard','orders','dispatch','dispatch-orders','reports','repair','public-repair','tracking','assets','security','cleaning','landscaping','analytics','knowledge','technicians'],
   '库管员':       ['dashboard','assets','warehouse','fixedassets','assetcats','facats'],
 };
 
