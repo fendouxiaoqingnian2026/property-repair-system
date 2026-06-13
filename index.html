@@ -1126,6 +1126,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <select class="filter-select" id="userFilterRole" onchange="renderUsers()"><option value="all">全部角色</option></select>
             <input type="text" class="filter-input" placeholder="🔍 搜索用户..." id="userSearch" oninput="renderUsers()">
             <button class="btn btn-primary btn-sm" id="btnAddUser" onclick="showUserModal()">+ 添加用户</button>
+            <button class="btn btn-warning btn-sm" id="btnPermissions" onclick="showPermissionManager()">🔐 权限管理</button>
             <button class="btn btn-secondary btn-sm" onclick="printSection('users')">🖨️ 打印</button>
           </div>
         </div>
@@ -4363,6 +4364,8 @@ function renderUsers() {
   // Update toolbar: show/hide add button based on permission
   const addBtn = document.getElementById('btnAddUser');
   if (addBtn) addBtn.style.display = isSuperAdmin ? '' : 'none';
+  const permBtn = document.getElementById('btnPermissions');
+  if (permBtn) permBtn.style.display = isSuperAdmin ? '' : 'none';
   document.getElementById('usersTable').innerHTML = filtered.map(u => `<tr>
     <td><strong>USR-${String(u.id).padStart(3,'0')}</strong></td>
     <td>${u.name}</td><td>${u.role}</td><td>${u.phone}</td><td>${u.email}</td>
@@ -4452,6 +4455,162 @@ function deleteUser(id) {
   users = users.filter(u => u.id !== id);
   refreshAll();
   showToast('✅ 用户已删除', 'success');
+}
+
+// ============ 权限管理 (超级管理员专属) ============
+const permissionPageLabels = {
+  'dashboard':'📊 数据大屏','reports':'📊 报表查询',
+  'orders':'📋 工单管理','dispatch':'📬 派单管理','dispatch-orders':'📋 派单工单管理','owners':'👤 业主信息管理',
+  'repair':'🔧 业主报修','public-repair':'🏘️ 公区报修','tracking':'📍 进度追踪',
+  'assets':'🏗️ 工程巡检管理',
+  'security':'🛡️ 秩维系统管理','cleaning':'🧹 保洁系统管理','landscaping':'🌿 绿化系统管理',
+  'warehouse':'🏪 库房管理','fixedassets':'📦 固定资产管理',
+  'analytics':'📈 数据分析','knowledge':'📚 知识库',
+  'repairtypes':'🔧 报修类型管理','assetcats':'🏷️ 资产类别管理','facats':'🏷️ 固定资产类别管理',
+  'addresses':'📍 报修地址管理','zones':'🗺️ 公区管理','technicians':'👨‍🔧 维修师傅','backup':'💾 数据备份','users':'👥 用户管理'
+};
+const permissionGroups = [
+  { name:'核心功能', pages:['dashboard','reports'] },
+  { name:'客服系统管理', pages:['orders','dispatch','dispatch-orders','owners','repair','public-repair','tracking'] },
+  { name:'工程系统管理', pages:['assets'] },
+  { name:'秩维系统管理', pages:['security','cleaning','landscaping'] },
+  { name:'库房管理', pages:['warehouse','fixedassets'] },
+  { name:'运营分析', pages:['analytics','knowledge'] },
+  { name:'系统设置', pages:['repairtypes','assetcats','facats','addresses','zones','technicians','backup'] },
+  { name:'用户管理', pages:['users'] }
+];
+
+function showPermissionManager() {
+  if (!currentUser || currentUser.role !== '超级管理员') { showToast('⚠️ 仅超级管理员可管理权限', 'error'); return; }
+
+  // 使用一个深拷贝用于编辑，点击保存时才真正写入
+  let editingPerms = {};
+  Object.keys(rolePermissions).forEach(role => {
+    editingPerms[role] = [...rolePermissions[role]];
+  });
+  let activeRole = '超级管理员';
+
+  function renderPermBody() {
+    const allPages = permissionGroups.flatMap(g => g.pages);
+    const perms = editingPerms[activeRole] || [];
+    const toggleGroup = (groupName) => {
+      const group = permissionGroups.find(g => g.name === groupName);
+      if (!group) return;
+      const allSelected = group.pages.every(p => perms.includes(p));
+      if (allSelected) {
+        // 全部取消
+        group.pages.forEach(p => { const idx = perms.indexOf(p); if (idx !== -1) perms.splice(idx, 1); });
+      } else {
+        // 全部勾选
+        group.pages.forEach(p => { if (!perms.includes(p)) perms.push(p); });
+      }
+      renderPermBody();
+    };
+    const togglePage = (page) => {
+      const idx = perms.indexOf(page);
+      if (idx === -1) perms.push(page);
+      else perms.splice(idx, 1);
+      renderPermBody();
+    };
+
+    const body = document.getElementById('permBody');
+    if (!body) return;
+
+    const stats = `${perms.length}/${allPages.length}`;
+    body.innerHTML = `
+      <style>
+        .perm-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--gray-100); }
+        .perm-tab { padding:8px 16px; border-radius:8px; font-size:13px; cursor:pointer; border:1px solid var(--gray-200); background:#fff; transition:all 0.2s; white-space:nowrap; }
+        .perm-tab:hover { border-color:var(--primary); color:var(--primary); }
+        .perm-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:600; }
+        .perm-group { margin-bottom:14px; }
+        .perm-group-hdr { display:flex; align-items:center; gap:8px; padding:8px 0; cursor:pointer; border-bottom:1px solid var(--gray-50); }
+        .perm-group-hdr:hover { background:var(--gray-50); border-radius:6px; padding:8px; }
+        .perm-group-name { font-size:14px; font-weight:600; color:var(--gray-700); flex:1; }
+        .perm-group-toggle { font-size:11px; color:var(--primary); }
+        .perm-pages { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; padding:8px 0 8px 24px; }
+        .perm-page-row { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:13px; transition:background 0.15s; }
+        .perm-page-row:hover { background:var(--gray-50); }
+        .perm-cb { width:18px; height:18px; border:2px solid var(--gray-300); border-radius:4px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s; }
+        .perm-cb.checked { background:var(--primary); border-color:var(--primary); color:#fff; font-size:12px; }
+        .perm-summary { text-align:center; padding:12px; background:var(--gray-50); border-radius:8px; margin-top:16px; font-size:13px; color:var(--gray-500); }
+        .perm-summary strong { color:var(--primary); font-size:16px; }
+      </style>
+      <div class="perm-tabs" id="permTabs">
+        ${roles.map(r => `<span class="perm-tab ${r===activeRole?'active':''}" onclick="window._switchPermRole('${r}')">${r}</span>`).join('')}
+      </div>
+      <div id="permBodyInner">
+        ${permissionGroups.map(g => {
+          const allSelected = g.pages.every(p => perms.includes(p));
+          const someSelected = g.pages.some(p => perms.includes(p));
+          return `<div class="perm-group">
+            <div class="perm-group-hdr" onclick="window._togglePermGroup('${g.name}')">
+              <span class="perm-cb ${allSelected?'checked':someSelected?'checked':''}" style="${someSelected&&!allSelected?'background:var(--warning);border-color:var(--warning);':''}">${allSelected?'✓':someSelected?'▣':''}</span>
+              <span class="perm-group-name">${g.name}</span>
+              <span class="perm-group-toggle">${allSelected?'全部取消':'全选'}</span>
+            </div>
+            <div class="perm-pages">
+              ${g.pages.map(p => {
+                const checked = perms.includes(p);
+                return `<div class="perm-page-row" onclick="window._togglePermPage('${p}')">
+                  <span class="perm-cb ${checked?'checked':''}">${checked?'✓':''}</span>
+                  <span>${permissionPageLabels[p]||p}</span>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="perm-summary">
+        已授予 <strong>${perms.length}</strong> / ${allPages.length} 个功能权限
+        ${perms.length === 0 ? '<br><span style="color:var(--danger);">⚠ 该角色将被拒绝访问所有功能</span>' : ''}
+      </div>
+    `;
+  }
+
+  // 暴露切换函数到 window
+  window._switchPermRole = function(role) {
+    activeRole = role;
+    renderPermBody();
+  };
+  window._togglePermGroup = function(groupName) {
+    const group = permissionGroups.find(g => g.name === groupName);
+    if (!group) return;
+    const perms = editingPerms[activeRole] || [];
+    const allSelected = group.pages.every(p => perms.includes(p));
+    if (allSelected) {
+      group.pages.forEach(p => { const idx = perms.indexOf(p); if (idx !== -1) perms.splice(idx, 1); });
+    } else {
+      group.pages.forEach(p => { if (!perms.includes(p)) perms.push(p); });
+    }
+    renderPermBody();
+  };
+  window._togglePermPage = function(page) {
+    const perms = editingPerms[activeRole] || [];
+    const idx = perms.indexOf(page);
+    if (idx === -1) perms.push(page);
+    else perms.splice(idx, 1);
+    renderPermBody();
+  };
+
+  openModal('🔐 权限管理 — 定义角色功能权限',
+    '<div id="permBody" style="min-height:300px;max-height:calc(80vh - 140px);overflow-y:auto;"></div>',
+    `<button class="btn btn-secondary" onclick="closeModal()">取消</button>
+     <button class="btn btn-primary" onclick="window._savePerms()">💾 保存权限配置</button>`
+  );
+
+  window._savePerms = function() {
+    // 将编辑的权限写入全局 rolePermissions
+    Object.keys(editingPerms).forEach(role => {
+      rolePermissions[role] = [...new Set(editingPerms[role])]; // 去重
+    });
+    saveAllData();
+    applyRoleVisibility();
+    closeModal();
+    showToast('✅ 权限配置已保存并生效', 'success');
+  };
+
+  renderPermBody();
 }
 
 function updateCurrentUserLabel() {
@@ -5267,6 +5426,7 @@ function saveAllData() {
       orders, technicians, assets, inventory, inventoryTransactions,
       addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
       knowledge, fixedAssetInspections,
+      rolePermissions,
       currentUserId: currentUser ? currentUser.id : null,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId,
@@ -5328,6 +5488,7 @@ function loadAllData() {
     if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
     if (data.knowledge) knowledge = data.knowledge;
     if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+    if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
     // 恢复计数器
     if (data.nextOrderId) nextOrderId = data.nextOrderId;
     if (data.nextTechId) nextTechId = data.nextTechId;
@@ -5368,7 +5529,7 @@ function exportBackup() {
     exportedAt: new Date().toISOString(),
     orders, technicians, assets, inventory, inventoryTransactions,
     addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
-    knowledge, fixedAssetInspections,
+    knowledge, fixedAssetInspections, rolePermissions,
     nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
     nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId
   };
@@ -5417,6 +5578,7 @@ function importBackup(input) {
       if (data.knowledge) knowledge = data.knowledge;
       if (data.fixedAssetInspections) fixedAssetInspections = data.fixedAssetInspections;
       if (data.users) { users = data.users; currentUser = (data.currentUserId ? users.find(u => u.id === data.currentUserId && u.status === 'active') : null) || users.find(u => u.role === '超级管理员' && u.status === 'active') || users.find(u => u.status === 'active') || users[0]; }
+      if (data.rolePermissions) { Object.keys(data.rolePermissions).forEach(role => { rolePermissions[role] = data.rolePermissions[role]; }); }
       // Restore counters
       if (data.nextOrderId) nextOrderId = data.nextOrderId;
       if (data.nextTechId) nextTechId = data.nextTechId;
