@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>物业维修 · 师傅端</title>
+<style>
+/* ============ Reset & Base ============ */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#1a1f36;font-size:14px;overflow:hidden;}
+:root{--primary:#4361ee;--primary-light:#5e7af5;--success:#06d6a0;--warning:#ff9f1c;--danger:#ef233c;--gray-100:#f0f2f5;--gray-200:#e2e5ea;--gray-400:#9ca3b0;--gray-500:#6b7282;--gray-600:#4b5062;--gray-700:#374052;--gray-800:#1a1f36;--radius:12px;--radius-sm:8px;}
+button{cursor:pointer;border:none;font-family:inherit;font-size:inherit;}
+input,select,textarea{font-family:inherit;font-size:inherit;}
+
+/* ============ Login Page ============ */
+.login-page{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:32px 24px;background:linear-gradient(160deg,#1e3a8a 0%,#4361ee 60%,#7209b7 120%);position:relative;overflow:hidden;}
+.login-page::before{content:'';position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,0.06);top:-80px;right:-80px;}
+.login-page::after{content:'';position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04);bottom:-40px;left:-40px;}
+.login-logo{position:relative;z-index:1;text-align:center;margin-bottom:40px;color:#fff;}
+.login-logo .logo-icon{width:72px;height:72px;background:rgba(255,255,255,0.15);border-radius:20px;display:inline-flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:16px;backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+.login-logo h1{font-size:24px;font-weight:700;letter-spacing:-0.3px;}
+.login-logo p{font-size:13px;opacity:0.65;margin-top:6px;}
+.login-form{position:relative;z-index:1;width:100%;max-width:360px;background:rgba(255,255,255,0.95);border-radius:20px;padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,0.25);backdrop-filter:blur(20px);}
+.login-form .form-group{margin-bottom:18px;}
+.login-form label{display:block;font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:6px;}
+.login-form input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:15px;outline:none;transition:border 0.2s;background:#fafbfc;}
+.login-form input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(67,97,238,0.1);}
+.login-form .btn-login{width:100%;padding:13px;border-radius:var(--radius-sm);background:linear-gradient(135deg,#4361ee,#7209b7);color:#fff;font-size:15px;font-weight:600;margin-top:6px;transition:transform 0.15s,box-shadow 0.2s;}
+.login-form .btn-login:active{transform:scale(0.97);}
+.login-error{color:var(--danger);font-size:12px;margin-top:10px;text-align:center;display:none;}
+.login-hint{text-align:center;font-size:11px;color:var(--gray-400);margin-top:18px;}
+
+/* ============ App Shell ============ */
+.app-shell{display:none;flex-direction:column;height:100vh;overflow:hidden;}
+.app-header{background:linear-gradient(135deg,#4361ee,#7209b7);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:relative;z-index:10;box-shadow:0 2px 12px rgba(67,97,238,0.3);}
+.app-header .header-title{font-size:16px;font-weight:700;}
+.app-header .header-right{display:flex;align-items:center;gap:12px;}
+.app-header .tech-name{font-size:13px;opacity:0.85;}
+.app-header .btn-logout{background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:12px;padding:5px 12px;border-radius:20px;}
+.app-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;}
+
+/* ============ Bottom Tab Bar ============ */
+.tab-bar{display:flex;flex-shrink:0;background:#fff;border-top:1px solid var(--gray-200);box-shadow:0 -2px 12px rgba(0,0,0,0.05);}
+.tab-bar .tab-item{flex:1;text-align:center;padding:8px 4px 10px;color:var(--gray-400);font-size:10px;cursor:pointer;transition:color 0.2s;position:relative;}
+.tab-bar .tab-item .tab-icon{font-size:22px;margin-bottom:2px;}
+.tab-bar .tab-item.active{color:var(--primary);}
+.tab-bar .tab-item.active::before{content:'';position:absolute;top:0;left:25%;right:25%;height:2px;background:var(--primary);border-radius:0 0 2px 2px;}
+
+/* ============ Cards & List ============ */
+.section-title{font-size:15px;font-weight:700;color:var(--gray-800);margin:16px 0 10px;}
+.section-title:first-child{margin-top:4px;}
+.order-card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,0.05);border-left:3px solid var(--primary);position:relative;}
+.order-card.priority-high{border-left-color:var(--danger);}
+.order-card.priority-urgent{border-left-color:#d90429;box-shadow:0 1px 6px rgba(239,35,60,0.12);}
+.order-card .order-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.order-card .order-id{font-size:12px;color:var(--gray-500);font-weight:600;}
+.order-card .order-priority{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
+.order-card .order-priority.normal{background:#eef0f6;color:var(--gray-500);}
+.order-card .order-priority.high{background:#fee2e2;color:#dc2626;}
+.order-card .order-priority.urgent{background:#fecaca;color:#b91c1c;}
+.order-card .order-type{font-size:15px;font-weight:700;color:var(--gray-800);margin-bottom:4px;}
+.order-card .order-address{font-size:13px;color:var(--gray-600);margin-bottom:6px;}
+.order-card .order-desc{font-size:13px;color:var(--gray-500);margin-bottom:10px;line-height:1.5;}
+.order-card .order-meta{display:flex;gap:12px;font-size:12px;color:var(--gray-400);margin-bottom:12px;}
+.order-card .order-actions{display:flex;gap:8px;}
+.order-card .order-actions button{flex:1;padding:9px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;}
+.btn-accept{background:linear-gradient(135deg,#4361ee,#5e7af5);color:#fff;}
+.btn-start{background:linear-gradient(135deg,#ff9f1c,#f59e0b);color:#fff;}
+.btn-complete{background:linear-gradient(135deg,#06d6a0,#34d399);color:#fff;}
+.btn-view{background:var(--gray-100);color:var(--gray-600);}
+.order-card .badge-status{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-pending{background:#eef0f6;color:var(--gray-500);}
+.badge-processing{background:#fff7ed;color:#f59e0b;}
+.badge-completed{background:#ecfdf5;color:#059669;}
+
+/* ============ Empty State ============ */
+.empty-state{text-align:center;padding:48px 24px;color:var(--gray-400);}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px;opacity:0.5;}
+.empty-state p{font-size:14px;}
+
+/* ============ Modal / Panel ============ */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;justify-content:center;align-items:flex-end;}
+.modal-overlay.show{display:flex;}
+.modal-panel{background:#fff;width:100%;max-height:92vh;border-radius:20px 20px 0 0;padding:24px 20px;overflow-y:auto;animation:slideUp 0.3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-panel .modal-title{font-size:17px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+.modal-panel .modal-title .close-btn{width:28px;height:28px;border-radius:50%;background:var(--gray-100);border:none;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--gray-500);}
+.modal-panel .form-group{margin-bottom:14px;}
+.modal-panel .form-group label{display:block;font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:5px;}
+.modal-panel .form-group input,.modal-panel .form-group textarea,.modal-panel .form-group select{width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;outline:none;background:#fafbfc;}
+.modal-panel .form-group input:focus,.modal-panel .form-group textarea:focus,.modal-panel .form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(67,97,238,0.08);}
+.modal-panel .form-group textarea{resize:vertical;min-height:80px;}
+.modal-panel .btn-submit{width:100%;padding:13px;border-radius:var(--radius-sm);background:linear-gradient(135deg,#4361ee,#7209b7);color:#fff;font-size:15px;font-weight:600;margin-top:8px;}
+
+/* ============ Image Upload ============ */
+.img-upload-area{border:2px dashed var(--gray-200);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:#fafbfc;position:relative;}
+.img-upload-area:active{border-color:var(--primary);background:#f0f4ff;}
+.img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.img-upload-area .upload-icon{font-size:28px;margin-bottom:4px;}
+.img-upload-area p{font-size:12px;color:var(--gray-400);}
+.img-preview-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.img-preview-grid .img-thumb{width:64px;height:64px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--gray-200);}
+.img-preview-grid .img-thumb img{width:100%;height:100%;object-fit:cover;}
+.img-preview-grid .img-thumb .remove-btn{position:absolute;top:1px;right:1px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;border:none;display:flex;align-items:center;justify-content:center;}
+
+/* ============ Inspection ============ */
+.inspect-card{background:#fff;border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.05);display:flex;align-items:center;gap:12px;}
+.inspect-card .asset-icon{width:44px;height:44px;border-radius:12px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.inspect-card .asset-info{flex:1;min-width:0;}
+.inspect-card .asset-name{font-size:14px;font-weight:600;color:var(--gray-800);}
+.inspect-card .asset-loc{font-size:12px;color:var(--gray-400);}
+.inspect-card .asset-status{font-size:11px;padding:3px 8px;border-radius:8px;font-weight:600;flex-shrink:0;}
+.asset-status.normal{background:#ecfdf5;color:#059669;}
+.asset-status.warning{background:#fff7ed;color:#f59e0b;}
+.asset-status.overdue{background:#fef2f2;color:#dc2626;}
+
+/* ============ Misc ============ */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,0.2);animation:toastIn 0.3s ease;pointer-events:none;}
+.toast.success{background:var(--success);}
+.toast.error{background:var(--danger);}
+.toast.info{background:var(--primary);}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+.page{display:none;}
+.page.active{display:block;}
+.badge-count{background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:2px;}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div class="login-page" id="loginPage">
+  <div class="login-logo">
+    <div class="logo-icon">🔧</div>
+    <h1>物业维修系统</h1>
+    <p>维修师傅专用端</p>
+  </div>
+  <div class="login-form">
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="loginUser" placeholder="请输入登录用户名" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="loginPwd" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">登  录</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-hint">使用管理后台分配的师傅账号登录</div>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div class="app-shell" id="appShell">
+  <div class="app-header">
+    <div class="header-title" id="headerTitle">待接单</div>
+    <div class="header-right">
+      <span class="tech-name" id="headerTechName"></span>
+      <button class="btn-logout" onclick="doLogout()">退出</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- PAGE: 待接单 -->
+    <div class="page active" id="pageOrders">
+      <div class="section-title">待接工单 <span class="badge-count" id="pendingCount">0</span></div>
+      <div id="pendingList"></div>
+    </div>
+
+    <!-- PAGE: 我的工单 -->
+    <div class="page" id="pageMyOrders">
+      <div class="section-title">进行中 <span class="badge-count" id="processingCount">0</span></div>
+      <div id="processingList"></div>
+      <div class="section-title" style="margin-top:20px;">已完成</div>
+      <div id="completedList"></div>
+    </div>
+
+    <!-- PAGE: 巡检 -->
+    <div class="page" id="pageInspect">
+      <div class="section-title">设备巡检</div>
+      <div id="inspectList"></div>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <div class="tab-item active" data-tab="orders" onclick="switchTab('orders')">
+      <div class="tab-icon">📋</div>
+      <div>待接单</div>
+    </div>
+    <div class="tab-item" data-tab="myOrders" onclick="switchTab('myOrders')">
+      <div class="tab-icon">🛠️</div>
+      <div>我的工单</div>
+    </div>
+    <div class="tab-item" data-tab="inspect" onclick="switchTab('inspect')">
+      <div class="tab-icon">🔍</div>
+      <div>巡检</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: 工单详情/处理 ==================== -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal-panel" style="max-height:90vh;">
+    <div class="modal-title">
+      <span id="modalOrderTitle">工单详情</span>
+      <button class="close-btn" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div id="modalOrderBody"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL: 巡检提交 ==================== -->
+<div class="modal-overlay" id="inspectModal">
+  <div class="modal-panel">
+    <div class="modal-title">
+      <span>提交巡检记录</span>
+      <button class="close-btn" onclick="closeInspectModal()">✕</button>
+    </div>
+    <div id="inspectModalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ============ SHA-256 ============ */
+async function sha256(message) {
+  if (crypto.subtle) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+  }
+  // fallback
+  var h = require ? undefined : undefined;
+  return Array.from(new TextEncoder().encode(message)).map(function(c){return c.toString(16).padStart(2,'0')}).join('');
+}
+
+/* ============ Data Access ============ */
+function getOrders() { return JSON.parse(localStorage.getItem('property_orders') || '[]'); }
+function saveOrders(data) { localStorage.setItem('property_orders', JSON.stringify(data)); }
+function getTechnicians() { return JSON.parse(localStorage.getItem('property_technicians') || '[]'); }
+function getAssets() { return JSON.parse(localStorage.getItem('property_assets') || '[]'); }
+function getFixedAssets() { return JSON.parse(localStorage.getItem('property_fixedAssets') || '[]'); }
+function getFixedAssetInspections() { return JSON.parse(localStorage.getItem('property_fixedAssetInspections') || '[]'); }
+function saveFixedAssetInspections(data) { localStorage.setItem('property_fixedAssetInspections', JSON.stringify(data)); }
+
+/* ============ Login ============ */
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginError');
+  if (!username || !password) {
+    errEl.textContent = '请输入用户名和密码';
+    errEl.style.display = 'block';
+    return;
+  }
+  const hash = await sha256(password);
+  const techs = getTechnicians();
+  const tech = techs.find(function(t) { return t.username === username && t.password === hash; });
+  if (!tech) {
+    errEl.textContent = '用户名或密码错误';
+    errEl.style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('_mobileTech', JSON.stringify({ id: tech.id, name: tech.name, username: tech.username, phone: tech.phone, skills: tech.skills }));
+  showApp();
+}
+
+function doLogout() {
+  sessionStorage.removeItem('_mobileTech');
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPwd').value = '';
+}
+
+function showApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+  var tech = JSON.parse(sessionStorage.getItem('_mobileTech') || '{}');
+  document.getElementById('headerTechName').textContent = tech.name || '';
+  switchTab('orders');
+}
+
+/* ============ Tab Switch ============ */
+function switchTab(tab) {
+  var titles = { orders: '待接单', myOrders: '我的工单', inspect: '设备巡检' };
+  document.getElementById('headerTitle').textContent = titles[tab] || '';
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-item').forEach(function(t) { t.classList.remove('active'); });
+  document.getElementById('page' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.querySelector('.tab-item[data-tab="' + tab + '"]').classList.add('active');
+  if (tab === 'orders') renderPendingOrders();
+  if (tab === 'myOrders') renderMyOrders();
+  if (tab === 'inspect') renderInspectList();
+}
+
+/* ============ 待接单 ============ */
+function renderPendingOrders() {
+  var orders = getOrders();
+  var pending = orders.filter(function(o) { return o.status === 'pending'; });
+  document.getElementById('pendingCount').textContent = pending.length;
+  var container = document.getElementById('pendingList');
+  if (!pending.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>暂无待接工单</p></div>';
+    return;
+  }
+  container.innerHTML = pending.map(function(o) {
+    var priClass = o.priority === '紧急' ? 'urgent' : (o.priority === '高' ? 'high' : 'normal');
+    return '<div class="order-card priority-' + priClass + '">' +
+      '<div class="order-header">' +
+        '<span class="order-id">' + esc(o.id) + '</span>' +
+        '<span class="order-priority ' + priClass + '">' + esc(o.priority) + '</span>' +
+      '</div>' +
+      '<div class="order-type">' + esc(o.type) + '</div>' +
+      '<div class="order-address">📍 ' + esc(o.address) + '</div>' +
+      '<div class="order-desc">' + esc(o.desc) + '</div>' +
+      '<div class="order-meta">' +
+        '<span>👤 ' + esc(o.contact) + '</span>' +
+        '<span>📞 ' + esc(o.phone) + '</span>' +
+        '<span>🕐 ' + esc(o.time) + '</span>' +
+      '</div>' +
+      '<div class="order-actions">' +
+        '<button class="btn-accept" onclick="acceptOrder(\'' + o.id + '\')">接 单</button>' +
+        '<button class="btn-view" onclick="viewOrder(\'' + o.id + '\')">查看</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function acceptOrder(orderId) {
+  var tech = JSON.parse(sessionStorage.getItem('_mobileTech') || '{}');
+  if (!tech.name) { showToast('请重新登录', 'error'); return; }
+  var orders = getOrders();
+  var o = orders.find(function(x) { return x.id === orderId; });
+  if (!o || o.status !== 'pending') { showToast('工单状态已变更', 'error'); renderPendingOrders(); return; }
+  o.status = 'processing';
+  o.tech = tech.name;
+  o.dispatchedAt = new Date().toISOString().replace('T',' ').substring(0,16);
+  saveOrders(orders);
+  showToast('✅ 接单成功！', 'success');
+  renderPendingOrders();
+}
+
+function viewOrder(orderId) {
+  var orders = getOrders();
+  var o = orders.find(function(x) { return x.id === orderId; });
+  if (!o) return;
+  document.getElementById('modalOrderTitle').textContent = '工单详情';
+  var imagesHTML = '';
+  if (o.images && o.images.length) {
+    imagesHTML = '<div style="margin-top:10px;"><strong>📷 现场图片：</strong><div class="img-preview-grid">' +
+      o.images.map(function(img) {
+        return '<div class="img-thumb"><img src="' + (img.data||img) + '"></div>';
+      }).join('') + '</div></div>';
+  }
+  document.getElementById('modalOrderBody').innerHTML =
+    '<div style="font-size:14px;line-height:1.8;">' +
+      '<p><strong>工单号：</strong>' + esc(o.id) + '</p>' +
+      '<p><strong>类型：</strong>' + esc(o.type) + '</p>' +
+      '<p><strong>地址：</strong>' + esc(o.address) + '</p>' +
+      '<p><strong>联系人：</strong>' + esc(o.contact) + ' / ' + esc(o.phone) + '</p>' +
+      '<p><strong>优先级：</strong>' + esc(o.priority) + '</p>' +
+      '<p><strong>描述：</strong>' + esc(o.desc) + '</p>' +
+      '<p><strong>报修时间：</strong>' + esc(o.time) + '</p>' +
+      imagesHTML +
+    '</div>' +
+    '<button class="btn-submit" style="margin-top:16px;" onclick="closeOrderModal()">关 闭</button>';
+  document.getElementById('orderModal').classList.add('show');
+}
+
+/* ============ 我的工单 ============ */
+function renderMyOrders() {
+  var tech = JSON.parse(sessionStorage.getItem('_mobileTech') || '{}');
+  if (!tech.name) return;
+  var orders = getOrders();
+  var myOrders = orders.filter(function(o) { return o.tech === tech.name; });
+  var processing = myOrders.filter(function(o) { return o.status === 'processing'; });
+  var completed = myOrders.filter(function(o) { return o.status === 'completed'; });
+  document.getElementById('processingCount').textContent = processing.length;
+
+  renderOrderList('processingList', processing, true);
+  renderOrderList('completedList', completed, false);
+}
+
+function renderOrderList(containerId, list, showActions) {
+  var container = document.getElementById(containerId);
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:24px;"><div class="empty-icon" style="font-size:32px;">📭</div><p>暂无工单</p></div>';
+    return;
+  }
+  container.innerHTML = list.map(function(o) {
+    var statusHTML = o.status === 'processing' ?
+      '<span class="badge-status badge-processing">维修中</span>' :
+      '<span class="badge-status badge-completed">已完成</span>';
+    var btnHTML = '';
+    if (showActions) {
+      btnHTML = '<div class="order-actions" style="margin-top:10px;">' +
+        (o.status === 'processing' ?
+          '<button class="btn-complete" onclick="openCompleteModal(\'' + o.id + '\')">✅ 提交完工</button>' : '') +
+        '<button class="btn-view" onclick="viewOrder(\'' + o.id + '\')" style="margin-left:8px;">查看详情</button>' +
+      '</div>';
+    }
+    return '<div class="order-card">' +
+      '<div class="order-header">' +
+        '<span class="order-id">' + esc(o.id) + '</span>' +
+        statusHTML +
+      '</div>' +
+      '<div class="order-type">' + esc(o.type) + '</div>' +
+      '<div class="order-address">📍 ' + esc(o.address) + '</div>' +
+      '<div class="order-desc">' + esc(o.desc) + '</div>' +
+      '<div class="order-meta">' +
+        '<span>👤 ' + esc(o.contact) + '</span>' +
+        '<span>🕐 ' + esc(o.time) + '</span>' +
+      '</div>' +
+      btnHTML +
+    '</div>';
+  }).join('');
+}
+
+/* ============ 提交完工 ============ */
+var _completeOrderId = '';
+var _completeImages = [];
+
+function openCompleteModal(orderId) {
+  _completeOrderId = orderId;
+  _completeImages = [];
+  document.getElementById('modalOrderTitle').textContent = '提交完工';
+  document.getElementById('modalOrderBody').innerHTML =
+    '<div class="form-group">' +
+      '<label>维修说明 *</label>' +
+      '<textarea id="completeDesc" placeholder="描述维修过程和结果..."></textarea>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>使用物料</label>' +
+      '<textarea id="completeMaterials" placeholder="如：PPR水管x2根，生料带x3卷（选填）"></textarea>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>完工照片（最多6张）</label>' +
+      '<div class="img-upload-area" onclick="document.getElementById(\'completeImgInput\').click()">' +
+        '<div class="upload-icon">📷</div>' +
+        '<p>点击拍照或选择照片</p>' +
+        '<input type="file" id="completeImgInput" accept="image/*" multiple style="display:none" onchange="handleCompleteImgSelect(this)">' +
+      '</div>' +
+      '<div class="img-preview-grid" id="completeImgPreviews"></div>' +
+    '</div>' +
+    '<button class="btn-submit" onclick="submitComplete()">✅ 提交完工</button>';
+  document.getElementById('orderModal').classList.add('show');
+}
+
+function handleCompleteImgSelect(input) {
+  if (!input.files) return;
+  Array.from(input.files).forEach(function(f) {
+    if (_completeImages.length >= 6) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      _completeImages.push(ev.target.result);
+      renderCompletePreviews();
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value = '';
+}
+
+function renderCompletePreviews() {
+  document.getElementById('completeImgPreviews').innerHTML = _completeImages.map(function(src, i) {
+    return '<div class="img-thumb">' +
+      '<img src="' + src + '">' +
+      '<button class="remove-btn" onclick="removeCompleteImg(' + i + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+function removeCompleteImg(index) {
+  _completeImages.splice(index, 1);
+  renderCompletePreviews();
+}
+
+function submitComplete() {
+  var desc = document.getElementById('completeDesc').value.trim();
+  if (!desc) { showToast('请填写维修说明', 'error'); return; }
+  var materials = document.getElementById('completeMaterials').value.trim();
+  var orders = getOrders();
+  var o = orders.find(function(x) { return x.id === _completeOrderId; });
+  if (!o) { showToast('工单不存在', 'error'); return; }
+  o.status = 'completed';
+  o.completedAt = new Date().toISOString().replace('T',' ').substring(0,16);
+  o.completedDesc = desc;
+  o.materials = materials;
+  if (_completeImages.length) o.completedImages = _completeImages.slice();
+  saveOrders(orders);
+  showToast('✅ 完工已提交！', 'success');
+  closeOrderModal();
+  renderMyOrders();
+}
+
+/* ============ 巡检 ============ */
+function renderInspectList() {
+  var assets = getFixedAssets();
+  var container = document.getElementById('inspectList');
+  if (!assets.length) {
+    // fallback to assets
+    assets = getAssets();
+  }
+  if (!assets.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>暂无设备数据，请在管理后台录入</p></div>';
+    return;
+  }
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  container.innerHTML = assets.map(function(a) {
+    var statusClass = 'normal';
+    var statusText = '正常';
+    if (a.status === 'overdue' || a.status === '逾期未检') { statusClass = 'overdue'; statusText = '逾期'; }
+    else if (a.status === 'pending_inspection' || a.status === '待巡检') { statusClass = 'warning'; statusText = '待巡检'; }
+    else if (a.status === 'warning' || a.status === '需检修') { statusClass = 'warning'; statusText = '需检修'; }
+    else if (a.status === 'maintenance' || a.status === '维保中') { statusClass = 'warning'; statusText = '维保中'; }
+    return '<div class="inspect-card" onclick="openInspectModal(\'' + esc(a.code) + '\')">' +
+      '<div class="asset-icon">🔧</div>' +
+      '<div class="asset-info">' +
+        '<div class="asset-name">' + esc(a.name) + '</div>' +
+        '<div class="asset-loc">' + esc(a.code) + ' · ' + esc(a.location||'') + '</div>' +
+      '</div>' +
+      '<span class="asset-status ' + statusClass + '">' + statusText + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+var _inspectAssetCode = '';
+var _inspectImages = [];
+
+function openInspectModal(code) {
+  _inspectAssetCode = code;
+  _inspectImages = [];
+  var assets = getFixedAssets();
+  var a = assets.find(function(x) { return x.code === code; });
+  if (!a) { showToast('设备不存在', 'error'); return; }
+  document.getElementById('inspectModalBody').innerHTML =
+    '<div style="margin-bottom:12px;">' +
+      '<strong>' + esc(a.name) + '</strong> <span style="color:var(--gray-400);font-size:12px;">' + esc(a.code) + '</span>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>巡检结果 *</label>' +
+      '<select id="inspectResult">' +
+        '<option value="">请选择</option>' +
+        '<option value="正常">✅ 正常</option>' +
+        '<option value="需检修">⚠️ 需检修</option>' +
+        '<option value="报修">🚨 报修</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>巡检备注</label>' +
+      '<textarea id="inspectNote" placeholder="记录巡检情况..."></textarea>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label>现场照片（最多6张）</label>' +
+      '<div class="img-upload-area" onclick="document.getElementById(\'inspectImgInput\').click()">' +
+        '<div class="upload-icon">📷</div>' +
+        '<p>点击拍照或选择照片</p>' +
+        '<input type="file" id="inspectImgInput" accept="image/*" multiple style="display:none" onchange="handleInspectImgSelect(this)">' +
+      '</div>' +
+      '<div class="img-preview-grid" id="inspectImgPreviews"></div>' +
+    '</div>' +
+    '<button class="btn-submit" onclick="submitInspect()">📤 提交巡检记录</button>';
+  document.getElementById('inspectModal').classList.add('show');
+}
+
+function handleInspectImgSelect(input) {
+  if (!input.files) return;
+  Array.from(input.files).forEach(function(f) {
+    if (_inspectImages.length >= 6) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      _inspectImages.push(ev.target.result);
+      renderInspectPreviews();
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value = '';
+}
+
+function renderInspectPreviews() {
+  document.getElementById('inspectImgPreviews').innerHTML = _inspectImages.map(function(src, i) {
+    return '<div class="img-thumb">' +
+      '<img src="' + src + '">' +
+      '<button class="remove-btn" onclick="removeInspectImg(' + i + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+function removeInspectImg(index) {
+  _inspectImages.splice(index, 1);
+  renderInspectPreviews();
+}
+
+function submitInspect() {
+  var result = document.getElementById('inspectResult').value;
+  if (!result) { showToast('请选择巡检结果', 'error'); return; }
+  var note = document.getElementById('inspectNote').value.trim();
+  var tech = JSON.parse(sessionStorage.getItem('_mobileTech') || '{}');
+  var inspections = getFixedAssetInspections();
+  var now = new Date();
+  var timeStr = now.toISOString().replace('T',' ').substring(0,16);
+  var record = {
+    id: 'INSP-' + Date.now(),
+    assetCode: _inspectAssetCode,
+    result: result,
+    note: note,
+    inspector: tech.name || '',
+    time: timeStr,
+    images: _inspectImages.length ? _inspectImages.slice() : []
+  };
+  inspections.unshift(record);
+  saveFixedAssetInspections(inspections);
+
+  // 更新设备状态
+  var assets = getFixedAssets();
+  var a = assets.find(function(x) { return x.code === _inspectAssetCode; });
+  if (a) {
+    if (result === '正常') a.status = 'normal';
+    else if (result === '需检修') a.status = 'warning';
+    else if (result === '报修') a.status = 'maintenance';
+    localStorage.setItem('property_fixedAssets', JSON.stringify(assets));
+  }
+  showToast('✅ 巡检记录已提交！', 'success');
+  closeInspectModal();
+  renderInspectList();
+}
+
+/* ============ Modal Close ============ */
+function closeOrderModal() {
+  document.getElementById('orderModal').classList.remove('show');
+  _completeOrderId = '';
+  _completeImages = [];
+}
+function closeInspectModal() {
+  document.getElementById('inspectModal').classList.remove('show');
+  _inspectAssetCode = '';
+  _inspectImages = [];
+}
+
+/* ============ Toast ============ */
+function showToast(msg, type) {
+  var el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.remove(); }, 2500);
+}
+
+/* ============ Util ============ */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ============ Init ============ */
+(function(){
+  var tech = sessionStorage.getItem('_mobileTech');
+  if (tech) {
+    showApp();
+  } else {
+    document.getElementById('loginPage').style.display = 'flex';
+  }
+})();
+</script>
+</body>
+</html>
