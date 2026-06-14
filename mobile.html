@@ -7,13 +7,13 @@
 <style>
 /* ============ Reset & Base ============ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#1a1f36;font-size:14px;overflow:hidden;}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;background:#f5f6fa;color:#1a1f36;font-size:14px;}
 :root{--primary:#4361ee;--primary-light:#5e7af5;--success:#06d6a0;--warning:#ff9f1c;--danger:#ef233c;--gray-100:#f0f2f5;--gray-200:#e2e5ea;--gray-400:#9ca3b0;--gray-500:#6b7282;--gray-600:#4b5062;--gray-700:#374052;--gray-800:#1a1f36;--radius:12px;--radius-sm:8px;}
 button{cursor:pointer;border:none;font-family:inherit;font-size:inherit;}
 input,select,textarea{font-family:inherit;font-size:inherit;}
 
 /* ============ Login Page ============ */
-.login-page{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:32px 24px;background:linear-gradient(160deg,#1e3a8a 0%,#4361ee 60%,#7209b7 120%);position:relative;overflow:hidden;}
+.login-page{display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:48px 24px 40px;background:linear-gradient(160deg,#1e3a8a 0%,#4361ee 60%,#7209b7 120%);position:relative;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
 .login-page::before{content:'';position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,0.06);top:-80px;right:-80px;}
 .login-page::after{content:'';position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04);bottom:-40px;left:-40px;}
 .login-logo{position:relative;z-index:1;text-align:center;margin-bottom:40px;color:#fff;}
@@ -186,8 +186,8 @@ input,select,textarea{font-family:inherit;font-size:inherit;}
         <label>确认密码 *</label>
         <input type="password" id="regPwdConfirm" placeholder="再次输入密码" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()">
       </div>
-      <button class="btn-login" type="button" onclick="doRegister()" style="margin-top:6px;background:linear-gradient(135deg,#06d6a0,#059669);">提 交 注 册</button>
-      <div class="login-error" id="regError"></div>
+      <button class="btn-login" type="button" onclick="doRegister()" style="margin-top:14px;background:linear-gradient(135deg,#06d6a0,#059669);">提 交 注 册</button>
+      <div class="login-error" id="regError" style="margin-bottom:8px;"></div>
     </div>
     <div style="text-align:center;margin-top:12px;" id="scanBtnArea">
       <button type="button" onclick="showScanModal()" style="background:none;border:1px solid var(--gray-200);border-radius:8px;padding:8px 18px;color:var(--primary);font-size:13px;cursor:pointer;">📷 扫码同步PC数据</button>
