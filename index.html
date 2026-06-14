@@ -758,6 +758,7 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
               <option value="入住">🟢 已入住</option>
               <option value="空置">⚪ 空置</option>
               <option value="装修">🔨 装修中</option>
+              <option value="fee_overdue">🔴 物业费逾期</option>
             </select>
             <select class="filter-select" id="ownerFilterBuilding" onchange="renderOwners()">
               <option value="all">全部楼栋</option>
@@ -4132,7 +4133,12 @@ function renderOwners() {
   const filterStatus = document.getElementById('ownerFilterStatus')?.value || 'all';
   const filterBuilding = document.getElementById('ownerFilterBuilding')?.value || 'all';
   let filtered = owners;
-  if (filterStatus !== 'all') filtered = filtered.filter(o => o.status === filterStatus);
+  if (filterStatus === 'fee_overdue') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    filtered = filtered.filter(o => o.feeEnd && new Date(o.feeEnd) < today);
+  } else if (filterStatus !== 'all') {
+    filtered = filtered.filter(o => o.status === filterStatus);
+  }
   if (filterBuilding !== 'all') filtered = filtered.filter(o => o.building === filterBuilding);
   if (search) filtered = filtered.filter(o =>
     o.name.toLowerCase().includes(search) || o.phone.includes(search) || o.full.includes(search) || (o.idCard||'').includes(search)
