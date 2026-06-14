@@ -146,6 +146,26 @@ input,select,textarea{font-family:inherit;font-size:inherit;}
     <button class="btn-login" type="button" onclick="doLogin()">登  录</button>
     <div class="login-error" id="loginError"></div>
     <div class="login-hint"><span id="loginHint">加载中...</span></div>
+    <div style="text-align:center;margin-top:12px;">
+      <button type="button" onclick="showScanModal()" style="background:none;border:1px solid var(--gray-200);border-radius:8px;padding:8px 18px;color:var(--primary);font-size:13px;cursor:pointer;">📷 扫码同步PC数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCAN MODAL ==================== -->
+<div class="modal-overlay" id="scanOverlay" style="display:none;background:rgba(0,0,0,0.92);">
+  <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="color:#fff;font-size:16px;font-weight:600;">📷 扫描同步二维码</span>
+      <button onclick="closeScanModal()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div id="scanReadr" style="width:100%;max-width:360px;aspect-ratio:1/1;background:#000;border-radius:12px;overflow:hidden;"></div>
+    <div id="scanStatus" style="color:rgba(255,255,255,0.7);font-size:13px;margin-top:12px;text-align:center;"></div>
+    <div id="scanProgress" style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:4px;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="closeScanModal()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 24px;border-radius:8px;font-size:14px;cursor:pointer;">取消</button>
+      <button onclick="pasteSyncData()" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:8px 24px;border-radius:8px;font-size:14px;cursor:pointer;">📋 粘贴同步数据</button>
+    </div>
   </div>
 </div>
 
@@ -730,6 +750,166 @@ function esc(s) {
     document.getElementById('loginPage').style.display = 'flex';
   }
 })();
+
+/* ============ 扫码同步（手机端） ============ */
+var _html5QrLoaded = false;
+var _html5QrScanner = null;
+var _scanChunks = {};
+var _scanTotal = 0;
+var _scanReceived = 0;
+
+function loadHtml5Qr(cb) {
+  if (_html5QrLoaded) { cb(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+  s.onload = function() { _html5QrLoaded = true; cb(); };
+  s.onerror = function() {
+    document.getElementById('scanStatus').textContent = '扫码库加载失败，请检查网络';
+  };
+  document.head.appendChild(s);
+}
+
+function showScanModal() {
+  document.getElementById('scanOverlay').style.display = 'flex';
+  document.getElementById('scanStatus').textContent = '正在启动相机...';
+  document.getElementById('scanProgress').textContent = '';
+  _scanChunks = {};
+  _scanTotal = 0;
+  _scanReceived = 0;
+  loadHtml5Qr(startScan);
+}
+
+function startScan() {
+  var readerEl = document.getElementById('scanReader');
+  readerEl.innerHTML = '';
+  if (_html5QrScanner) {
+    try { _html5QrScanner.clear(); } catch(e) {}
+  }
+  _html5QrScanner = new Html5Qrcode('scanReader');
+  var config = { fps: 10, qrbox: { width: 250, height: 250 } };
+  _html5QrScanner.start(
+    { facingMode: 'environment' },
+    config,
+    onScanSuccess,
+    function(errorMsg) { /* ignore scan errors */ }
+  ).then(function() {
+    document.getElementById('scanStatus').textContent = '将二维码对准扫描框';
+  }).catch(function(err) {
+    document.getElementById('scanStatus').textContent = '相机启动失败：' + String(err).substring(0, 50);
+  });
+}
+
+function onScanSuccess(decodedText) {
+  try {
+    // 尝试解析 "P1/3:json_chunk" 分片格式
+    var match = decodedText.match(/^P(\d+)\/(\d+):/);
+    if (match) {
+      var idx = parseInt(match[1], 10);
+      var total = parseInt(match[2], 10);
+      var chunk = decodedText.substring(match[0].length);
+
+      if (!_scanChunks[idx]) {
+        _scanChunks[idx] = chunk;
+        _scanReceived++;
+      }
+      _scanTotal = total;
+      document.getElementById('scanProgress').textContent = '已接收 ' + _scanReceived + ' / ' + total;
+
+      if (_scanReceived >= total) {
+        // 所有分片已接收，重组
+        var json = '';
+        for (var i = 1; i <= total; i++) {
+          json += _scanChunks[i] || '';
+        }
+        finishImport(json);
+      } else {
+        document.getElementById('scanStatus').textContent = '已接收分片 ' + _scanReceived + '/' + total + '，请继续扫描下一页';
+      }
+    } else {
+      // 无分片标记，整包数据
+      finishImport(decodedText);
+    }
+  } catch(e) {
+    document.getElementById('scanStatus').textContent = '扫描异常，请重试';
+    console.error('Scan error:', e);
+  }
+}
+
+function finishImport(jsonStr) {
+  try {
+    var data = JSON.parse(jsonStr);
+    importSyncData(data);
+    document.getElementById('scanStatus').textContent = '✅ 同步成功！正在刷新...';
+    setTimeout(function() {
+      closeScanModal();
+      location.reload();
+    }, 1200);
+  } catch(e) {
+    document.getElementById('scanStatus').textContent = '数据解析失败，请重试';
+    console.error('Import parse error:', e, jsonStr.substring(0, 200));
+  }
+}
+
+function pasteSyncData() {
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(function(text) {
+      processPastedData(text);
+    }).catch(function() {
+      showToast('读取剪贴板失败，请手动粘贴', 'error');
+    });
+  } else {
+    showToast('当前浏览器不支持，请手动粘贴', 'error');
+  }
+}
+
+function processPastedData(text) {
+  if (!text) { showToast('剪贴板为空', 'error'); return; }
+  var jsonStr = text;
+  if (text.indexOf('SPDATA:') === 0) {
+    var encoded = text.substring(7);
+    try {
+      jsonStr = decodeURIComponent(escape(atob(encoded)));
+    } catch(e) {
+      showToast('数据解码失败', 'error');
+      return;
+    }
+  }
+  try {
+    var data = JSON.parse(jsonStr);
+    importSyncData(data);
+    document.getElementById('scanStatus').textContent = '✅ 粘贴同步成功！正在刷新...';
+    setTimeout(function() {
+      closeScanModal();
+      location.reload();
+    }, 1200);
+  } catch(e) {
+    showToast('数据格式错误，请重新复制', 'error');
+    console.error('Paste parse error:', e);
+  }
+}
+
+function importSyncData(data) {
+  if (!data) return;
+  var full = getFullData();
+  if (data.technicians) full.technicians = data.technicians;
+  if (data.fixedAssets) full.fixedAssets = data.fixedAssets;
+  if (data.fixedAssetInspections) full.fixedAssetInspections = data.fixedAssetInspections;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(full));
+  } catch(e) {
+    showToast('存储空间不足，请清理后重试', 'error');
+  }
+}
+
+function closeScanModal() {
+  if (_html5QrScanner) {
+    try { _html5QrScanner.stop(); } catch(e) {}
+    try { _html5QrScanner.clear(); } catch(e) {}
+    _html5QrScanner = null;
+  }
+  document.getElementById('scanOverlay').style.display = 'none';
+  document.getElementById('scanReader').innerHTML = '';
+}
 </script>
 </body>
 </html>
