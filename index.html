@@ -1010,10 +1010,25 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <input type="text" class="filter-input" placeholder="🔍 搜索师傅姓名/用户名/手机/技能..." id="techSearch" oninput="renderTechnicianList()">
             <button class="btn btn-primary btn-sm" onclick="showTechnicianModal()">+ 录入师傅</button>
             <button class="btn btn-outline btn-sm" onclick="refreshTechWorkload()" style="border-color:var(--info);color:var(--info);">🔄 刷新工单数</button>
+            <button class="btn btn-outline btn-sm" id="techReviewBtn" onclick="toggleReviewPanel()" style="border-color:var(--warning);color:var(--warning);position:relative;">
+              📝 注册审核 <span id="reviewBadge" style="background:var(--danger);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;position:absolute;top:-8px;right:-8px;display:none;">0</span>
+            </button>
             <button class="btn btn-secondary btn-sm" onclick="printTableOnly('printArea-techs','👨‍🔧 维修师傅清单')">🖨️ 打印</button>
           </div>
         </div>
         <div id="techSummary" style="display:flex;gap:12px;padding:10px 16px;flex-wrap:wrap;font-size:13px;"></div>
+
+        <!-- 注册审核面板 -->
+        <div id="techReviewPanel" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 16px;margin:0 0 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h4 style="margin:0;color:#92400e;">📝 注册申请审核</h4>
+            <button onclick="toggleReviewPanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#92400e;">✕</button>
+          </div>
+          <div id="techReviewList" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="text-align:center;color:var(--gray-400);padding:12px;">暂无待审核的注册申请</div>
+          </div>
+        </div>
+
         <table class="data-table"><thead><tr><th>编号</th><th>姓名</th><th>用户名</th><th>手机</th><th>技能</th><th>工龄</th><th>入职</th><th>当前工单</th><th>最大</th><th>评分</th><th>状态</th><th>操作</th></tr></thead><tbody id="technicianTable"></tbody></table>
         <div id="printArea-techs" style="display:none;"></div>
       </div>
@@ -1286,7 +1301,8 @@ function encodeSyncData() {
     t: new Date().toISOString(),
     technicians: (typeof technicians !== 'undefined') ? technicians : [],
     fixedAssets: (typeof fixedAssets !== 'undefined') ? fixedAssets : [],
-    fixedAssetInspections: (typeof fixedAssetInspections !== 'undefined') ? fixedAssetInspections : []
+    fixedAssetInspections: (typeof fixedAssetInspections !== 'undefined') ? fixedAssetInspections : [],
+    techRegistrations: (typeof getRegistrations === 'function') ? getRegistrations() : []
   };
   var json = JSON.stringify(payload);
   return json;
@@ -1595,7 +1611,7 @@ function navigateTo(page) {
   // Refresh dynamic pages on navigate
   if (page === 'repair') { populateRepairAddresses(); populateRepairTypeDropdowns(); }
   if (page === 'public-repair') { populatePublicZones(); populateRepairTypeDropdowns(); }
-  if (page === 'technicians') renderTechnicianList();
+  if (page === 'technicians') { renderTechnicianList(); updateReviewBadge(); }
   if (page === 'addresses') renderAddresses();
   if (page === 'zones') renderZones();
   if (page === 'warehouse') { renderInventory(); updateInvStats(); }
@@ -2989,6 +3005,109 @@ function renderTechnicianList() {
       + '</td></tr>';
   }).join('') || '<tr><td colspan="12" style="text-align:center;color:var(--gray-400);padding:40px;">暂无师傅记录</td></tr>';
 }
+
+// ============ 注册审核 ============
+function getRegistrations() {
+  return JSON.parse(localStorage.getItem('smartproperty_data_v2') || '{}').techRegistrations || [];
+}
+function saveRegistrations(regs) {
+  var data = JSON.parse(localStorage.getItem('smartproperty_data_v2') || '{}');
+  data.techRegistrations = regs;
+  data.savedAt = new Date().toISOString();
+  localStorage.setItem('smartproperty_data_v2', JSON.stringify(data));
+}
+
+function updateReviewBadge() {
+  var regs = getRegistrations();
+  var pending = regs.length;
+  var badge = document.getElementById('reviewBadge');
+  if (badge) {
+    badge.textContent = pending;
+    badge.style.display = pending > 0 ? 'inline' : 'none';
+  }
+}
+
+function toggleReviewPanel() {
+  var panel = document.getElementById('techReviewPanel');
+  if (panel.style.display === 'none' || !panel.style.display) {
+    panel.style.display = '';
+    renderReviewList();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function renderReviewList() {
+  var regs = getRegistrations();
+  var list = document.getElementById('techReviewList');
+  if (!regs.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:12px;">✅ 暂无待审核的注册申请</div>';
+    return;
+  }
+  list.innerHTML = regs.map(function(r, i) {
+    var timeStr = r.registeredAt ? new Date(r.registeredAt).toLocaleString('zh-CN') : '未知';
+    return '<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;">'
+      + '<div style="flex:1;min-width:0;">'
+        + '<div style="font-weight:600;color:var(--gray-800);">' + esc(r.name) + ' <span style="font-weight:400;color:var(--gray-500);font-size:12px;">@' + esc(r.username) + '</span></div>'
+        + '<div style="font-size:12px;color:var(--gray-400);margin-top:2px;">📱 ' + esc(r.phone) + ' · 🛠️ ' + esc(r.skills) + '</div>'
+        + '<div style="font-size:11px;color:var(--gray-400);margin-top:2px;">注册时间：' + timeStr + '</div>'
+      + '</div>'
+      + '<button class="btn btn-primary btn-xs" onclick="approveRegistration(' + i + ')" style="flex-shrink:0;white-space:nowrap;">✅ 通过</button>'
+      + '<button class="btn btn-danger btn-xs" onclick="rejectRegistration(' + i + ')" style="flex-shrink:0;white-space:nowrap;">❌ 拒绝</button>'
+    + '</div>';
+  }).join('');
+}
+
+function approveRegistration(index) {
+  var regs = getRegistrations();
+  var reg = regs[index];
+  if (!reg) return;
+  if (!confirm('确定通过 [' + reg.name + ' @' + reg.username + '] 的注册申请？\n通过后该师傅可以使用手机端正常登录。')) return;
+
+  // 从注册记录中移除
+  regs.splice(index, 1);
+  saveRegistrations(regs);
+
+  // 添加到技师列表
+  delete reg.regStatus;
+  delete reg.registeredAt;
+  delete reg.reviewedBy;
+  delete reg.reviewedAt;
+  reg.status = 'available';
+  reg.hireDate = new Date().toISOString().split('T')[0];
+  reg.reviewedAt = new Date().toISOString();
+  reg.reviewedBy = (currentUser && currentUser.name) || 'admin';
+  technicians.push(reg);
+  saveAllData();
+
+  updateReviewBadge();
+  renderReviewList();
+  renderTechnicianList();
+  showToast('✅ 已通过 ' + reg.name + ' 的注册申请', 'success');
+}
+
+function rejectRegistration(index) {
+  var regs = getRegistrations();
+  var reg = regs[index];
+  if (!reg) return;
+  if (!confirm('确定拒绝 [' + reg.name + ' @' + reg.username + '] 的注册申请？\n该操作不可撤销。')) return;
+
+  regs.splice(index, 1);
+  saveRegistrations(regs);
+
+  updateReviewBadge();
+  renderReviewList();
+  showToast('已拒绝并删除注册申请', 'warning');
+}
+
+// 页面切换时更新审核徽章
+var _origNavigateToPage = window.navigateTo;
+window.navigateTo = function(page) {
+  if (_origNavigateToPage) _origNavigateToPage(page);
+  if (page === 'technicians') {
+    setTimeout(updateReviewBadge, 100);
+  }
+};
 
 function refreshTechWorkload() {
   // 根据实际工单刷新每位师傅的 current/load

@@ -29,6 +29,7 @@ input,select,textarea{font-family:inherit;font-size:inherit;}
 .login-form .btn-login:active{transform:scale(0.97);}
 .login-error{color:var(--danger);font-size:12px;margin-top:10px;text-align:center;display:none;}
 .login-hint{text-align:center;font-size:11px;color:var(--gray-400);margin-top:18px;}
+.reg-link{color:var(--primary);font-weight:600;text-decoration:none;}
 
 /* ============ App Shell ============ */
 .app-shell{display:none;flex-direction:column;height:100vh;overflow:hidden;}
@@ -145,8 +146,50 @@ input,select,textarea{font-family:inherit;font-size:inherit;}
     </div>
     <button class="btn-login" type="button" onclick="doLogin()">登  录</button>
     <div class="login-error" id="loginError"></div>
+    <div style="text-align:center;margin-top:14px;">
+      <span id="loginSwitch" style="font-size:13px;color:var(--gray-500);">还没有账号？<a href="javascript:void(0)" onclick="showRegisterForm()" style="color:var(--primary);font-weight:600;text-decoration:none;">立即注册</a></span>
+      <span id="registerSwitch" style="display:none;font-size:13px;color:var(--gray-500);">已有账号？<a href="javascript:void(0)" onclick="showLoginForm()" style="color:var(--primary);font-weight:600;text-decoration:none;">返回登录</a></span>
+    </div>
     <div class="login-hint"><span id="loginHint">加载中...</span></div>
-    <div style="text-align:center;margin-top:12px;">
+    <!-- ====== 注册表单（默认隐藏）====== -->
+    <div id="registerForm" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-200);">
+      <div class="form-group">
+        <label>真实姓名 *</label>
+        <input type="text" id="regName" placeholder="请输入姓名" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div class="form-group">
+        <label>登录用户名 *</label>
+        <input type="text" id="regUsername" placeholder="用于登录的用户名" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div class="form-group">
+        <label>手机号 *</label>
+        <input type="tel" id="regPhone" placeholder="11位手机号" maxlength="11" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div class="form-group">
+        <label>擅长技能</label>
+        <select id="regSkills" style="width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:15px;outline:none;background:#fafbfc;-webkit-appearance:textfield;">
+          <option value="">请选择...</option>
+          <option value="水电维修">水电维修</option>
+          <option value="空调暖通">空调暖通</option>
+          <option value="弱电门禁">弱电门禁</option>
+          <option value="管道疏通">管道疏通</option>
+          <option value="电梯维保">电梯维保</option>
+          <option value="墙面门窗">墙面门窗</option>
+          <option value="综合维修">综合维修</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>设置密码 *</label>
+        <input type="password" id="regPwd" placeholder="至少6位密码" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <div class="form-group">
+        <label>确认密码 *</label>
+        <input type="password" id="regPwdConfirm" placeholder="再次输入密码" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <button class="btn-login" type="button" onclick="doRegister()" style="margin-top:6px;background:linear-gradient(135deg,#06d6a0,#059669);">提 交 注 册</button>
+      <div class="login-error" id="regError"></div>
+    </div>
+    <div style="text-align:center;margin-top:12px;" id="scanBtnArea">
       <button type="button" onclick="showScanModal()" style="background:none;border:1px solid var(--gray-200);border-radius:8px;padding:8px 18px;color:var(--primary);font-size:13px;cursor:pointer;">📷 扫码同步PC数据</button>
     </div>
   </div>
@@ -311,7 +354,35 @@ function saveFixedAssetInspections(inspections) { saveFullData({ fixedAssetInspe
 
 function saveFixedAssets(assets) { saveFullData({ fixedAssets: assets }); }
 
+function getRegistrations() {
+  var data = getFullData();
+  return data.techRegistrations || [];
+}
+function saveRegistrations(regs) { saveFullData({ techRegistrations: regs }); }
+
 /* ============ Login ============ */
+function showRegisterForm() {
+  document.getElementById('loginUser').parentElement.style.display = 'none';
+  document.getElementById('loginPwd').parentElement.style.display = 'none';
+  document.querySelector('.btn-login[onclick="doLogin()"]').style.display = 'none';
+  document.getElementById('loginSwitch').style.display = 'none';
+  document.getElementById('registerSwitch').style.display = '';
+  document.getElementById('registerForm').style.display = '';
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('regError').style.display = 'none';
+  document.getElementById('scanBtnArea').style.display = 'none';
+}
+
+function showLoginForm() {
+  document.getElementById('loginUser').parentElement.style.display = '';
+  document.getElementById('loginPwd').parentElement.style.display = '';
+  document.querySelector('.btn-login[onclick="doLogin()"]').style.display = '';
+  document.getElementById('loginSwitch').style.display = '';
+  document.getElementById('registerSwitch').style.display = 'none';
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('scanBtnArea').style.display = '';
+}
+
 async function doLogin() {
   const errEl = document.getElementById('loginError');
   try {
@@ -326,8 +397,27 @@ async function doLogin() {
     const techs = getTechnicians();
     const tech = techs.find(function(t) { return t.username === username && t.password === hash; });
     if (!tech) {
+      // 检查是否是已注册但未审核的账号
+      var regs = getRegistrations();
+      var pendingReg = regs.find(function(r) { return r.username === username; });
+      if (pendingReg) {
+        errEl.textContent = '您的账号正在审核中，请等待管理员通过后登录';
+        errEl.style.display = 'block';
+        return;
+      }
       var availNames = techs.map(function(t){return t.username;}).join('、');
       errEl.textContent = '用户名或密码错误（可用账号: ' + availNames + '）';
+      errEl.style.display = 'block';
+      return;
+    }
+    // 检查审核状态
+    if (tech.regStatus === 'pending') {
+      errEl.textContent = '您的注册申请正在审核中，请等待管理员通过';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (tech.regStatus === 'rejected') {
+      errEl.textContent = '您的注册申请已被拒绝，请联系管理员';
       errEl.style.display = 'block';
       return;
     }
@@ -338,6 +428,80 @@ async function doLogin() {
     errEl.textContent = '登录异常，请刷新页面重试';
     errEl.style.display = 'block';
     console.error('Login error:', e);
+  }
+}
+
+async function doRegister() {
+  var errEl = document.getElementById('regError');
+  try {
+    var name = document.getElementById('regName').value.trim();
+    var username = document.getElementById('regUsername').value.trim().toLowerCase();
+    var phone = document.getElementById('regPhone').value.trim();
+    var skills = document.getElementById('regSkills').value;
+    var pwd = document.getElementById('regPwd').value;
+    var pwdConfirm = document.getElementById('regPwdConfirm').value;
+
+    // 校验
+    if (!name || !username || !phone || !pwd || !pwdConfirm) { errEl.textContent = '请填写所有必填项（*）'; errEl.style.display='block'; return; }
+    if (username.length < 3 || username.length > 20) { errEl.textContent = '用户名需3-20位'; errEl.style.display='block'; return; }
+    if (!/^1\d{10}$/.test(phone)) { errEl.textContent = '请输入正确的11位手机号'; errEl.style.display='block'; return; }
+    if (pwd.length < 6) { errEl.textContent = '密码至少6位'; errEl.style.display='block'; return; }
+    if (pwd !== pwdConfirm) { errEl.textContent = '两次密码不一致'; errEl.style.display='block'; return; }
+
+    // 检查用户名是否已存在
+    var existingTechs = getTechnicians();
+    if (existingTechs.find(function(t){return t.username === username;})) {
+      errEl.textContent = '该用户名已被使用'; errEl.style.display='block'; return;
+    }
+    var regs = getRegistrations();
+    if (regs.find(function(r){return r.username === username;})) {
+      errEl.textContent = '该用户名已有待审核的注册'; errEl.style.display='block'; return;
+    }
+
+    // 计算新ID
+    var allIds = existingTechs.map(function(t){return t.id;}).concat(regs.map(function(r){return r.id;}));
+    var newId = allIds.length ? Math.max.apply(null, allIds) + 1 : 1;
+
+    var regHash = await sha256(pwd);
+
+    // 创建注册记录
+    var newReg = {
+      id: newId,
+      name: name,
+      username: username,
+      phone: phone,
+      skills: skills || '综合维修',
+      experience: '新人',
+      hireDate: '',
+      load: 0, current: 0, max: 4, rating: 0,
+      status: 'available',
+      regStatus: 'pending',
+      password: regHash,
+      registeredAt: new Date().toISOString(),
+      reviewedBy: null,
+      reviewedAt: null
+    };
+
+    regs.push(newReg);
+    saveRegistrations(regs);
+
+    // 清空表单
+    document.getElementById('regName').value = '';
+    document.getElementById('regUsername').value = '';
+    document.getElementById('regPhone').value = '';
+    document.getElementById('regSkills').value = '';
+    document.getElementById('regPwd').value = '';
+    document.getElementById('regPwdConfirm').value = '';
+
+    showToast('✅ 注册成功！请等待管理员审核', 'success');
+    errEl.style.display = 'none';
+
+    // 3秒后自动切回登录页
+    setTimeout(showLoginForm, 2500);
+
+  } catch(e) {
+    errEl.textContent = '注册异常，请重试'; errEl.style.display='block';
+    console.error('Register error:', e);
   }
 }
 
@@ -894,6 +1058,7 @@ function importSyncData(data) {
   if (data.technicians) full.technicians = data.technicians;
   if (data.fixedAssets) full.fixedAssets = data.fixedAssets;
   if (data.fixedAssetInspections) full.fixedAssetInspections = data.fixedAssetInspections;
+  if (data.techRegistrations) full.techRegistrations = data.techRegistrations;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(full));
   } catch(e) {
