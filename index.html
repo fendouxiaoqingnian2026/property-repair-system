@@ -6873,6 +6873,7 @@ const STORAGE_KEY = 'smartproperty_data_v2';
 
 function saveAllData() {
   try {
+    const prev = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const data = {
       orders, technicians, assets, inventory, inventoryTransactions,
       addresses, zones, owners, buildingList, unitList, repairTypes, assetCategories, fixedAssets, fixedAssetCategories, users,
@@ -6882,8 +6883,9 @@ function saveAllData() {
       currentUserId: currentUser ? currentUser.id : null,
       nextOrderId, nextTechId, nextAssetId, nextInvId, nextTrId, nextAddrId, nextZoneId, nextOwnerId,
       nextRtId, nextAcId, nextFaId, nextFacId, nextUserId, nextKbId, nextInspAssignId,
+      techRegistrations: prev.techRegistrations || [],
       savedAt: new Date().toISOString(),
-      _saveCount: ((JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'))._saveCount || 0) + 1
+      _saveCount: (prev._saveCount || 0) + 1
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     // 更新自动保存时间显示
