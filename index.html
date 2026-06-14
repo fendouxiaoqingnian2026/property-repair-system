@@ -803,7 +803,19 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
           <div class="glass-card">
             <h3 style="margin-bottom:20px;">📎 问题描述与凭证</h3>
             <div class="form-group"><label>问题描述 *</label><textarea id="repairDesc" placeholder="请详细描述故障现象、发生时间等信息..."></textarea></div>
-            <div class="upload-zone" onclick="handleUpload()"><div class="upload-icon">📸</div><p><strong>点击上传</strong> 或拖拽图片/视频到此处</p><p class="upload-hint">支持 JPG/PNG/MP4，单文件最大 20MB，最多9张</p></div>
+            <div style="margin-top:8px;">
+              <div class="img-upload-area" id="ownerOrderImgUploadArea"
+                onclick="document.getElementById('ownerOrderImageInput').click()"
+                ondragover="event.preventDefault();this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="event.preventDefault();this.classList.remove('drag-over');_handleOrderImgDrop(event,'owner')">
+                <div class="upload-icon">📷</div>
+                <p><strong>点击上传</strong> 或拖拽图片/视频到此处</p>
+                <p class="upload-hint">支持 JPG/PNG/MP4，单文件最大 20MB，最多9张</p>
+                <input type="file" id="ownerOrderImageInput" multiple accept="image/*,video/*" style="display:none" onchange="_handleOrderImgSelect(this,'owner')">
+              </div>
+              <div id="ownerOrderImgPreviews" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+            </div>
             <div style="margin-top:16px;display:flex;gap:10px;">
               <button class="btn btn-primary" style="flex:1;" onclick="submitRepair()">📤 提交报修</button>
               <button class="btn btn-secondary" onclick="showToast('已保存草稿','success')">💾 存草稿</button>
@@ -834,7 +846,19 @@ body::before{content:'';position:fixed;top:-50%;left:-50%;width:200%;height:200%
             <h3 style="margin-bottom:20px;">📎 问题描述与凭证</h3>
             <div class="form-group"><label>问题描述 *</label><textarea id="pubDesc" placeholder="请详细描述公区设施故障现象、位置、安全隐患等信息..."></textarea></div>
             <div class="form-group"><label>紧急程度</label><select id="pubUrgency"><option>普通 — 不影响使用</option><option>高 — 影响正常使用</option><option>紧急 — 存在安全隐患</option></select></div>
-            <div class="upload-zone" onclick="handleUpload()"><div class="upload-icon">📸</div><p><strong>点击上传</strong> 现场照片/视频</p><p class="upload-hint">支持 JPG/PNG/MP4，单文件最大 20MB</p></div>
+            <div style="margin-top:8px;">
+              <div class="img-upload-area" id="publicOrderImgUploadArea"
+                onclick="document.getElementById('publicOrderImageInput').click()"
+                ondragover="event.preventDefault();this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="event.preventDefault();this.classList.remove('drag-over');_handleOrderImgDrop(event,'public')">
+                <div class="upload-icon">📷</div>
+                <p><strong>点击上传</strong> 现场照片/视频</p>
+                <p class="upload-hint">支持 JPG/PNG/MP4，单文件最大 20MB</p>
+                <input type="file" id="publicOrderImageInput" multiple accept="image/*,video/*" style="display:none" onchange="_handleOrderImgSelect(this,'public')">
+              </div>
+              <div id="publicOrderImgPreviews" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;"></div>
+            </div>
             <div style="margin-top:16px;display:flex;gap:10px;">
               <button class="btn btn-primary" style="flex:1;" onclick="submitPublicRepair()">📤 提交公区报修</button>
               <button class="btn btn-secondary" onclick="showToast('已保存草稿','success')">💾 存草稿</button>
@@ -2960,7 +2984,86 @@ function populateRepairAddresses() {
   if (!sel) return;
   sel.innerHTML = '<option>请选择楼栋-单元-房号</option>' + addresses.map(a => `<option>${a.full}</option>`).join('');
 }
-function handleUpload() { showToast('📸 模拟上传：已收到图片', 'success'); }
+// ============ 报修图片上传（业主报修 + 公区报修）============
+window._ownerOrderImages = [];
+window._publicOrderImages = [];
+const _ORDER_IMG_MAX = 9;
+const _ORDER_IMG_MAX_SIZE = 20 * 1024 * 1024; // 20MB
+
+function _getOrderImgArray(type) {
+  return type === 'public' ? window._publicOrderImages : window._ownerOrderImages;
+}
+function _setOrderImgArray(type, arr) {
+  if (type === 'public') window._publicOrderImages = arr;
+  else window._ownerOrderImages = arr;
+}
+function _getOrderPreviewContainer(type) {
+  return document.getElementById(type === 'public' ? 'publicOrderImgPreviews' : 'ownerOrderImgPreviews');
+}
+function _handleOrderImgSelect(input, type) {
+  if (!input.files || !input.files.length) return;
+  const files = Array.from(input.files);
+  const arr = _getOrderImgArray(type);
+  let loaded = 0;
+  files.forEach(f => {
+    if (arr.length >= _ORDER_IMG_MAX) { showToast(`最多上传 ${_ORDER_IMG_MAX} 张`, 'error'); return; }
+    if (f.size > _ORDER_IMG_MAX_SIZE) { showToast(`"${f.name}" 超过 20MB 限制`, 'error'); return; }
+    _readOrderImgFile(f, type, () => { loaded++; if (loaded === Math.min(files.length, _ORDER_IMG_MAX)) _renderOrderImgPreviews(type); });
+  });
+  input.value = '';
+}
+function _handleOrderImgDrop(e, type) {
+  e.preventDefault();
+  const dt = e.dataTransfer;
+  if (!dt || !dt.files || !dt.files.length) return;
+  const fakeInput = { files: dt.files };
+  _handleOrderImgSelect(fakeInput, type);
+}
+function _readOrderImgFile(file, type, cb) {
+  const arr = _getOrderImgArray(type);
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    arr.push({ name: file.name, type: file.type, data: ev.target.result, size: file.size });
+    if (cb) cb();
+  };
+  reader.onerror = function() { showToast(`读取"${file.name}"失败`, 'error'); if (cb) cb(); };
+  reader.readAsDataURL(file);
+}
+function _removeOrderImg(index, type) {
+  const arr = _getOrderImgArray(type);
+  arr.splice(index, 1);
+  _renderOrderImgPreviews(type);
+}
+function _renderOrderImgPreviews(type) {
+  const arr = _getOrderImgArray(type);
+  const container = _getOrderPreviewContainer(type);
+  if (!container) return;
+  if (!arr.length) { container.innerHTML = ''; container.style.display = 'none'; return; }
+  container.style.display = 'flex';
+  container.innerHTML = arr.map((img, i) => {
+    const isVideo = (img.type||'').startsWith('video');
+    return `<div style="position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1px solid var(--gray-200);background:#f8f9fc;display:flex;align-items:center;justify-content:center;">
+      ${isVideo
+        ? '<span style="font-size:28px;">🎬</span>'
+        : `<img src="${img.data}" style="width:100%;height:100%;object-fit:cover;">`
+      }
+      <button onclick="event.stopPropagation();_removeOrderImg(${i},'${type}')" title="删除"
+        style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>
+      <span style="position:absolute;bottom:2px;left:2px;right:2px;text-align:center;font-size:9px;color:#fff;background:rgba(0,0,0,0.45);border-radius:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px;">${(img.size/1024/1024).toFixed(1)}MB</span>
+    </div>`;
+  }).join('');
+}
+// 切换页面时清空上传图片
+function _clearOrderImagesOnNavigate(targetPage) {
+  if (targetPage !== 'repair') { window._ownerOrderImages = []; const c = document.getElementById('ownerOrderImgPreviews'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } }
+  if (targetPage !== 'public-repair') { window._publicOrderImages = []; const c = document.getElementById('publicOrderImgPreviews'); if (c) { c.innerHTML = ''; c.style.display = 'none'; } }
+}
+// 在 navigateTo 中调用 _clearOrderImagesOnNavigate
+const _origNavigateTo = window.navigateTo;
+window.navigateTo = function(page) {
+  _clearOrderImagesOnNavigate(page);
+  return _origNavigateTo ? _origNavigateTo(page) : (window.location.hash = '#' + page);
+};
 function submitRepair() {
   const type = document.getElementById('repairType').value;
   const addr = document.getElementById('repairAddress').value;
@@ -2972,7 +3075,9 @@ function submitRepair() {
   const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   const id = 'HSJ-2026-' + String(nextOrderId).padStart(4, '0');
   nextOrderId++;
-  orders.unshift({ id, type, address: addr, contact, phone, priority: '普通', status: 'pending', tech: '', time: timeStr, desc, source: 'owner', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  orders.unshift({ id, type, address: addr, contact, phone, priority: '普通', status: 'pending', tech: '', time: timeStr, desc, images: [...window._ownerOrderImages], source: 'owner', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  window._ownerOrderImages = [];
+  const ownerPrev = document.getElementById('ownerOrderImgPreviews'); if (ownerPrev) { ownerPrev.innerHTML = ''; ownerPrev.style.display = 'none'; }
   saveAllData(); // 立即持久化
   refreshAll();
   showToast(`✅ 报修提交成功！工单号：${id}`, 'success');
@@ -3001,7 +3106,9 @@ function submitPublicRepair() {
   const timeStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   const id = 'HSJ-2026-' + String(nextOrderId).padStart(4, '0');
   nextOrderId++;
-  orders.unshift({ id, type, address: zone, contact, phone, priority, status: 'pending', tech: '', time: timeStr, desc: '[公区报修] ' + desc, source: 'public', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  orders.unshift({ id, type, address: zone, contact, phone, priority, status: 'pending', tech: '', time: timeStr, desc: '[公区报修] ' + desc, images: [...window._publicOrderImages], source: 'public', creator: (currentUser && currentUser.name) || contact, dispatchedAt: '', completedAt: '', materials: '' });
+  window._publicOrderImages = [];
+  const pubPrev = document.getElementById('publicOrderImgPreviews'); if (pubPrev) { pubPrev.innerHTML = ''; pubPrev.style.display = 'none'; }
   saveAllData(); // 立即持久化
   refreshAll();
   showToast(`✅ 公区报修提交成功！工单号：${id}`, 'success');
