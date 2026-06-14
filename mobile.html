@@ -145,7 +145,7 @@ input,select,textarea{font-family:inherit;font-size:inherit;}
     </div>
     <button class="btn-login" type="button" onclick="doLogin()">登  录</button>
     <div class="login-error" id="loginError"></div>
-    <div class="login-hint" id="loginHint">默认账号：zhao / qian / sun / zhou / wu，密码 123456</div>
+    <div class="login-hint"><span id="loginHint">加载中...</span></div>
   </div>
 </div>
 
@@ -306,7 +306,8 @@ async function doLogin() {
     const techs = getTechnicians();
     const tech = techs.find(function(t) { return t.username === username && t.password === hash; });
     if (!tech) {
-      errEl.textContent = '用户名或密码错误';
+      var availNames = techs.map(function(t){return t.username;}).join('、');
+      errEl.textContent = '用户名或密码错误（可用账号: ' + availNames + '）';
       errEl.style.display = 'block';
       return;
     }
@@ -714,6 +715,13 @@ function esc(s) {
   var existing = localStorage.getItem(STORAGE_KEY);
   if (!existing) {
     saveFullData({ technicians: DEFAULT_TECHNICIANS, orders: [], fixedAssets: [], fixedAssetInspections: [] });
+  }
+  // 动态显示可用技师账号
+  var techs = getTechnicians();
+  var hintEl = document.getElementById('loginHint');
+  if (hintEl) {
+    var names = techs.map(function(t){return t.username;}).join(' / ');
+    hintEl.textContent = '可用账号：' + names + ' ｜ 默认密码 123456';
   }
   var tech = sessionStorage.getItem('_mobileTech');
   if (tech) {
