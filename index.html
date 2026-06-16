@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartProperty v3.3 — 智慧物业报修管理系统</title>
+<style>
+/* ===================== 基础重置 & CSS 变量 ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #1a73e8; --primary-light: #4a9af5; --primary-dark: #1557b0;
+  --success: #34a853; --warning: #fbbc04; --danger: #ea4335;
+  --bg: #f0f2f5; --card: #ffffff; --text: #202124; --text-sec: #5f6368;
+  --border: #e0e0e0; --hover: #f5f5f5; --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --radius: 10px; --sidebar-w: 220px;
+}
+body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: var(--sidebar-w); background: linear-gradient(180deg, #1a237e 0%, #283593 100%); color: #fff; display: flex; flex-direction: column; z-index: 100; transition: transform .3s; }
+.sidebar .logo { padding: 20px 16px; font-size: 16px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.1); line-height: 1.4; }
+.sidebar .logo small { font-size: 11px; font-weight: 400; opacity: .7; display: block; margin-top: 4px; }
+.sidebar nav { flex: 1; overflow-y: auto; padding: 8px 0; }
+.sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: rgba(255,255,255,.8); text-decoration: none; font-size: 14px; transition: .2s; border-left: 3px solid transparent; }
+.sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,.1); color: #fff; border-left-color: var(--primary-light); }
+.sidebar nav a .icon { width: 20px; text-align: center; font-size: 16px; }
+.sidebar .user-info { padding: 16px; border-top: 1px solid rgba(255,255,255,.1); font-size: 13px; }
+.sidebar .user-info .name { font-weight: 600; }
+.sidebar .user-info .role { opacity: .7; font-size: 12px; }
+
+.main { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { height: 56px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; position: sticky; top: 0; z-index: 50; }
+.topbar .page-title { font-size: 17px; font-weight: 600; }
+.topbar .actions { display: flex; gap: 10px; align-items: center; }
+.topbar .sync-status { font-size: 12px; color: var(--text-sec); }
+
+.page { display: none; padding: 24px; flex: 1; }
+.page.active { display: block; }
+
+/* 卡片 & 统计 */
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px; transition: .2s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.stat-card .icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.stat-card .info .num { font-size: 28px; font-weight: 700; line-height: 1; }
+.stat-card .info .label { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+
+/* 通用表格 & 按钮 */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 20px; }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #fafafa; font-weight: 600; position: sticky; top: 0; }
+tr:hover { background: var(--hover); }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; transition: .2s; font-family: inherit; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-warning { background: var(--warning); color: #fff; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: var(--hover); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-blue { background: #e8f0fe; color: var(--primary); }
+.badge-green { background: #e6f4ea; color: var(--success); }
+.badge-yellow { background: #fef7e0; color: #e37400; }
+.badge-red { background: #fce8e6; color: var(--danger); }
+.badge-gray { background: #f1f3f4; color: var(--text-sec); }
+
+/* 表单 */
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 14px; font-family: inherit; transition: .2s; background: #fff;
+}
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,115,232,.15); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* 模态框 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; display: none; align-items: center; justify-content: center; }
+.modal-mask.show { display: flex; }
+.modal { background: var(--card); border-radius: 12px; width: 600px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,.2); }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-header h3 { font-size: 17px; }
+.modal-body { padding: 20px; }
+.modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+/* 登录遮罩 */
+.login-mask { position: fixed; inset: 0; background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #1565c0 100%); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.login-box { background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.3); width: 420px; max-width: 95vw; overflow: hidden; }
+.login-header { background: linear-gradient(135deg, var(--primary), #1565c0); color: #fff; padding: 28px 24px 20px; text-align: center; }
+.login-header h2 { font-size: 22px; }
+.login-header p { font-size: 13px; opacity: .85; margin-top: 6px; }
+.login-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.login-tabs button { flex: 1; padding: 12px; border: none; background: none; font-size: 14px; cursor: pointer; color: var(--text-sec); transition: .2s; font-family: inherit; }
+.login-tabs button.active { color: var(--primary); border-bottom: 2px solid var(--primary); font-weight: 600; }
+.login-form { padding: 24px; }
+.login-form .form-group { margin-bottom: 18px; }
+.login-form input { padding: 10px 14px; font-size: 15px; }
+.login-form .btn { width: 100%; justify-content: center; padding: 11px; font-size: 15px; }
+.login-switch { text-align: center; margin-top: 14px; font-size: 13px; color: var(--text-sec); }
+.login-switch a { color: var(--primary); cursor: pointer; text-decoration: none; }
+.login-switch a:hover { text-decoration: underline; }
+.login-role-select { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.login-role-select button { padding: 10px; border: 2px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; font-family: inherit; transition: .2s; }
+.login-role-select button.selected { border-color: var(--primary); background: #e8f0fe; color: var(--primary); }
+.login-error { color: var(--danger); font-size: 13px; margin-top: 10px; text-align: center; display: none; }
+.login-error.show { display: block; }
+
+/* 搜索栏 */
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar input[type=text] { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; width: 240px; }
+.toolbar select { padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+
+/* 分页 */
+.pagination { display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 16px; }
+.pagination button { padding: 5px 11px; border: 1px solid var(--border); border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; font-family: inherit; }
+.pagination button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pagination button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 权限管理 */
+.perm-group { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.perm-group-header { padding: 10px 16px; background: #fafafa; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.perm-group-body { padding: 12px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.perm-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.perm-item input[type=checkbox] { width: 16px; height: 16px; }
+
+/* 切换开关 */
+.switch { position: relative; width: 40px; height: 22px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; inset: 0; background: #ccc; border-radius: 22px; cursor: pointer; transition: .3s; }
+.switch .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .3s; }
+.switch input:checked + .slider { background: var(--primary); }
+.switch input:checked + .slider::before { transform: translateX(18px); }
+
+/* 管理员徽章 */
+.admin-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #e8f0fe; color: var(--primary); border-radius: 10px; font-size: 11px; font-weight: 600; }
+.admin-lock-notice { background: #fef7e0; border: 1px solid #fbbc04; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #e37400; margin-bottom: 16px; }
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.show { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .stats { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 登录遮罩 ==================== -->
+<div class="login-mask" id="loginMask">
+  <div class="login-box">
+    <div class="login-header">
+      <h2>🏠 SmartProperty v3.3</h2>
+      <p>智慧物业报修管理系统</p>
+    </div>
+    <div class="login-tabs">
+      <button class="active" onclick="switchToLogin()">登录</button>
+      <button onclick="switchToRegister()">注册</button>
+    </div>
+
+    <!-- 登录表单 -->
+    <div class="login-form" id="loginFormPanel">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="loginUser" placeholder="请输入用户名">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="loginPass" placeholder="请输入密码">
+      </div>
+      <div class="form-group">
+        <label>登录角色</label>
+        <div class="login-role-select" id="loginRoleSelect">
+          <button onclick="selectLoginRole(this,'超级管理员')">👑 超级管理员</button>
+          <button onclick="selectLoginRole(this,'工程人员')">🔧 工程人员</button>
+          <button onclick="selectLoginRole(this,'秩维人员')">🛡️ 秩维人员</button>
+          <button onclick="selectLoginRole(this,'保洁人员')">🧹 保洁人员</button>
+          <button onclick="selectLoginRole(this,'客服人员')">📞 客服人员</button>
+          <button onclick="selectLoginRole(this,'业主')">🏠 业主</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="handleLogin()">登 录</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-switch">还没有账号？<a onclick="switchToRegister()">立即注册</a></div>
+    </div>
+
+    <!-- 注册表单 -->
+    <div class="login-form" id="registerFormPanel" style="display:none;">
+      <div class="form-group">
+        <label>用户名</label>
+        <input type="text" id="regUser" placeholder="请输入用户名（4-20位）">
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" id="regPass" placeholder="请输入密码（至少6位）">
+      </div>
+      <div class="form-group">
+        <label>确认密码</label>
+        <input type="password" id="regPass2" placeholder="请再次输入密码">
+      </div>
+      <div class="form-group">
+        <label>注册角色</label>
+        <select id="regRole" onchange="onRegRoleChange()">
+          <option value="">-- 请选择 --</option>
+          <option value="工程人员">🔧 工程人员</option>
+          <option value="秩维人员">🛡️ 秩维人员</option>
+          <option value="保洁人员">🧹 保洁人员</option>
+          <option value="客服人员">📞 客服人员</option>
+          <option value="业主">🏠 业主</option>
+        </select>
+      </div>
+      <div class="form-group" id="regNameGroup" style="display:none;">
+        <label>姓名</label>
+        <input type="text" id="regName" placeholder="请输入真实姓名">
+      </div>
+      <div class="form-group" id="regPhoneGroup" style="display:none;">
+        <label>手机号</label>
+        <input type="text" id="regPhone" placeholder="请输入手机号">
+      </div>
+      <button class="btn btn-primary" onclick="handleRegister()">注 册</button>
+      <div class="login-error" id="regError"></div>
+      <div class="login-switch">已有账号？<a onclick="switchToLogin()">返回登录</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 侧边栏 ==================== -->
+<div class="sidebar" id="sidebar">
+  <div class="logo">🏠 SmartProperty<br><small>v3.3 智慧物业报修管理系统</small></div>
+  <nav>
+    <a href="#" class="active" onclick="navTo('dashboard',this)"><span class="icon">📊</span> 仪表盘</a>
+    <a href="#" onclick="navTo('orders',this)"><span class="icon">📋</span> 工单管理</a>
+    <a href="#" onclick="navTo('dispatch',this)"><span class="icon">🚚</span> 派单管理</a>
+    <a href="#" onclick="navTo('owners',this)"><span class="icon">👥</span> 业主管理</a>
+    <a href="#" onclick="navTo('inventory',this)"><span class="icon">📦</span> 库房管理</a>
+    <a href="#" onclick="navTo('inspection',this)"><span class="icon">🔍</span> 设备巡检</a>
+    <a href="#" onclick="navTo('staff',this)"><span class="icon">🧑‍💼</span> 员工管理</a>
+    <a href="#" onclick="navTo('permissions',this)"><span class="icon">🔐</span> 权限管理</a>
+    <a href="#" onclick="navTo('datareview',this)"><span class="icon">📊</span> 数据审阅</a>
+    <a href="#" onclick="navTo('settings',this)"><span class="icon">⚙️</span> 系统设置</a>
+  </nav>
+  <div class="user-info">
+    <div class="name" id="sideUserName">未登录</div>
+    <div class="role" id="sideUserRole"></div>
+  </div>
+</div>
+
+<!-- ==================== 主内容区 ==================== -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="pageTitle">仪表盘</div>
+    <div class="actions">
+      <span class="sync-status" id="syncStatus"></span>
+      <button class="btn btn-outline btn-sm" onclick="logout()">退出登录</button>
+    </div>
+  </div>
+
+  <!-- ★ 仪表盘 -->
+  <div class="page active" id="page-dashboard">
+    <div class="stats" id="dashboardStats"></div>
+    <div class="card">
+      <div class="card-title">📈 工单趋势（最近7天）</div>
+      <div id="trendChart" style="height:200px;display:flex;align-items:flex-end;gap:8px;padding:20px 0;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔔 最新动态</div>
+      <div id="recentActivity" style="font-size:14px;color:var(--text-sec);">加载中...</div>
+    </div>
+  </div>
+
+  <!-- ★ 工单管理 -->
+  <div class="page" id="page-orders">
+    <div class="toolbar">
+      <input type="text" id="orderSearch" placeholder="搜索工单号/业主/地址..." oninput="renderOrders()">
+      <select id="orderStatusFilter" onchange="renderOrders()">
+        <option value="">全部状态</option>
+        <option value="待处理">待处理</option>
+        <option value="处理中">处理中</option>
+        <option value="已完成">已完成</option>
+        <option value="已取消">已取消</option>
+      </select>
+      <button class="btn btn-primary" onclick="showOrderModal()">＋ 新建工单</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>工单号</th><th>业主</th><th>类型</th><th>地址</th><th>状态</th><th>派单人</th><th>接单人</th><th>时间</th><th>操作</th></tr></thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+      <div class="pagination" id="ordersPager"></div>
+    </div>
+  </div>
+
+  <!-- ★ 派单管理 -->
+  <div class="page" id="page-dispatch">
+    <div class="toolbar">
+      <input type="text" id="dispatchSearch" placeholder="搜索工单..." oninput="renderDispatch()">
+      <select id="dispatchFilter" onchange="renderDispatch()">
+        <option value="">全部</option>
+        <option value="待派单">待派单</option>
+        <option value="已派单">已派单</option>
+        <option value="处理中">处理中</option>
+        <option value="已完成">已完成</option>
+      </select>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>工单号</th><th>类型</th><th>地址</th><th>状态</th><th>派单人</th><th>接单人</th><th>操作</th></tr></thead>
+        <tbody id="dispatchBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ★ 业主管理 -->
+  <div class="page" id="page-owners">
+    <div class="toolbar">
+      <input type="text" id="ownerSearch" placeholder="搜索业主/房号..." oninput="renderOwners()">
+      <button class="btn btn-primary" onclick="showOwnerModal()">＋ 新增业主</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>姓名</th><th>房号</th><th>楼栋</th><th>手机号</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="ownersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ★ 库房管理 -->
+  <div class="page" id="page-inventory">
+    <div class="toolbar">
+      <input type="text" id="invSearch" placeholder="搜索物品..." oninput="renderInventory()">
+      <button class="btn btn-primary" onclick="showInvModal()">＋ 新增物品</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>名称</th><th>分类</th><th>库存</th><th>单位</th><th>单价</th><th>操作</th></tr></thead>
+        <tbody id="inventoryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ★ 设备巡检 -->
+  <div class="page" id="page-inspection">
+    <div class="toolbar">
+      <input type="text" id="inspSearch" placeholder="搜索设备..." oninput="renderInspection()">
+      <button class="btn btn-primary" onclick="showInspModal()">＋ 新增设备</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>设备名称</th><th>位置</th><th>类型</th><th>上次巡检</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="inspectionBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ★ 员工管理 -->
+  <div class="page" id="page-staff">
+    <div class="stats" id="staffStats"></div>
+    <div class="toolbar">
+      <select id="staffTypeTab" onchange="renderCurrentStaff()">
+        <option value="engineer">🔧 工程人员</option>
+        <option value="security">🛡️ 秩维人员</option>
+        <option value="cleaning">🧹 保洁人员</option>
+        <option value="service">📞 客服人员</option>
+      </select>
+      <input type="text" id="staffSearch" placeholder="搜索姓名/手机号..." oninput="renderCurrentStaff()">
+      <button class="btn btn-primary" onclick="showStaffModal()">＋ 新增员工</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>ID</th><th>姓名</th><th>手机号</th><th>角色</th><th>状态</th><th>操作</th></tr></thead>
+        <tbody id="staffBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ★ 权限管理 -->
+  <div class="page" id="page-permissions">
+    <div class="admin-lock-notice" id="adminLockNotice" style="display:none;">
+      🔒 超级管理员拥有所有权限，无法修改
+    </div>
+    <div class="toolbar">
+      <select id="permRoleSelect" onchange="renderPermissions()">
+        <option value="超级管理员">👑 超级管理员</option>
+        <option value="工程人员">🔧 工程人员</option>
+        <option value="秩维人员">🛡️ 秩维人员</option>
+        <option value="保洁人员">🧹 保洁人员</option>
+        <option value="客服人员">📞 客服人员</option>
+      </select>
+    </div>
+    <div class="card" id="permContainer"></div>
+  </div>
+
+  <!-- ★ 数据审阅 -->
+  <div class="page" id="page-datareview">
+    <div class="stats" id="reviewStats"></div>
+    <div class="card">
+      <div class="card-title">📊 数据概览</div>
+      <div id="reviewContent" style="font-size:14px;color:var(--text-sec);">加载中...</div>
+    </div>
+  </div>
+
+  <!-- ★ 系统设置 -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-title">⚙️ 系统设置</div>
+      <div class="form-group"><label>系统名称</label><input type="text" id="settingName" value="SmartProperty v3.3"></div>
+      <div class="form-group"><label>物业名称</label><input type="text" id="settingProperty" value="智慧物业管理中心"></div>
+      <div class="form-group"><label>报修电话</label><input type="text" id="settingPhone" value="400-888-9999"></div>
+      <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+    </div>
+    <div class="card">
+      <div class="card-title">🔄 数据管理</div>
+      <button class="btn btn-warning" onclick="exportData()">导出数据</button>
+      <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">导入数据</button>
+      <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
+      <button class="btn btn-danger" onclick="resetData()" style="margin-left:10px;">重置数据</button>
+    </div>
+    <div class="card">
+      <div class="card-title">👤 账户管理</div>
+      <button class="btn btn-outline" onclick="showSwitchUserModal()">切换用户</button>
+      <button class="btn btn-outline" onclick="changePassword()">修改密码</button>
+    </div>
+  </div>
+</div><!-- end .main -->
+
+<!-- ==================== 模态框集合 ==================== -->
+<div class="modal-mask" id="orderModal">
+  <div class="modal">
+    <div class="modal-header"><h3>📋 新建工单</h3><button class="btn btn-sm btn-outline" onclick="closeModal('orderModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>业主</label><select id="orderOwner"></select></div>
+        <div class="form-group"><label>报修类型</label>
+          <select id="orderType"><option value="水电维修">水电维修</option><option value="门窗维修">门窗维修</option><option value="管道疏通">管道疏通</option><option value="公共设施">公共设施</option><option value="绿化保洁">绿化保洁</option><option value="安防设备">安防设备</option><option value="其他">其他</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>报修地址</label><input type="text" id="orderAddr" placeholder="如：3栋2单元501"></div>
+      <div class="form-group"><label>问题描述</label><textarea id="orderDesc" rows="3" placeholder="请描述具体问题"></textarea></div>
+      <div class="form-group"><label>紧急程度</label><select id="orderUrgency"><option value="普通">普通</option><option value="紧急">紧急</option><option value="非常紧急">非常紧急</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('orderModal')">取消</button><button class="btn btn-primary" onclick="saveOrder()">提交工单</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="dispatchModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🚚 派单</h3><button class="btn btn-sm btn-outline" onclick="closeModal('dispatchModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>工单号</label><input type="text" id="dispatchOrderId" readonly></div>
+      <div class="form-group"><label>派给（人员）</label><select id="dispatchWorker"></select></div>
+      <div class="form-group"><label>备注</label><textarea id="dispatchNote" rows="2" placeholder="派单备注"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('dispatchModal')">取消</button><button class="btn btn-primary" onclick="confirmDispatch()">确认派单</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="ownerModal">
+  <div class="modal">
+    <div class="modal-header"><h3>👥 新增业主</h3><button class="btn btn-sm btn-outline" onclick="closeModal('ownerModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>姓名</label><input type="text" id="ownerName"></div><div class="form-group"><label>手机号</label><input type="text" id="ownerPhone"></div></div>
+      <div class="form-row"><div class="form-group"><label>楼栋</label><input type="text" id="ownerBuilding"></div><div class="form-group"><label>房号</label><input type="text" id="ownerRoom"></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('ownerModal')">取消</button><button class="btn btn-primary" onclick="saveOwner()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="invModal">
+  <div class="modal">
+    <div class="modal-header"><h3>📦 新增物品</h3><button class="btn btn-sm btn-outline" onclick="closeModal('invModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>名称</label><input type="text" id="invName"></div><div class="form-group"><label>分类</label><select id="invCategory"><option value="五金">五金</option><option value="电器">电器</option><option value="管材">管材</option><option value="工具">工具</option><option value="清洁">清洁</option><option value="其他">其他</option></select></div></div>
+      <div class="form-row"><div class="form-group"><label>库存</label><input type="number" id="invQty" value="0"></div><div class="form-group"><label>单位</label><input type="text" id="invUnit" value="个"></div></div>
+      <div class="form-group"><label>单价（元）</label><input type="number" id="invPrice" step="0.01" value="0"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('invModal')">取消</button><button class="btn btn-primary" onclick="saveInv()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="inspModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🔍 新增设备</h3><button class="btn btn-sm btn-outline" onclick="closeModal('inspModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="form-group"><label>设备名称</label><input type="text" id="inspName"></div><div class="form-group"><label>类型</label><select id="inspType"><option value="电梯">电梯</option><option value="消防">消防</option><option value="监控">监控</option><option value="门禁">门禁</option><option value="供水">供水</option><option value="供电">供电</option></select></div></div>
+      <div class="form-group"><label>位置</label><input type="text" id="inspLocation" placeholder="如：3栋1单元"></div>
+      <div class="form-group"><label>状态</label><select id="inspStatus"><option value="正常">正常</option><option value="待检">待检</option><option value="异常">异常</option></select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('inspModal')">取消</button><button class="btn btn-primary" onclick="saveInsp()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="staffModal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="staffModalTitle">🧑‍💼 新增员工</h3><button class="btn btn-sm btn-outline" onclick="closeModal('staffModal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="staffEditId">
+      <div class="form-row"><div class="form-group"><label>姓名</label><input type="text" id="staffName"></div><div class="form-group"><label>手机号</label><input type="text" id="staffPhone"></div></div>
+      <div class="form-row"><div class="form-group"><label>角色</label><select id="staffRole"><option value="工程人员">🔧 工程人员</option><option value="秩维人员">🛡️ 秩维人员</option><option value="保洁人员">🧹 保洁人员</option><option value="客服人员">📞 客服人员</option></select></div><div class="form-group"><label>状态</label><select id="staffStatus"><option value="在职">在职</option><option value="休假">休假</option><option value="离职">离职</option></select></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('staffModal')">取消</button><button class="btn btn-primary" onclick="saveStaff()">保存</button></div>
+  </div>
+</div>
+
+<div class="modal-mask" id="switchUserModal">
+  <div class="modal">
+    <div class="modal-header"><h3>👤 切换用户</h3><button class="btn btn-sm btn-outline" onclick="closeModal('switchUserModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>选择用户</label><select id="switchUserSelect"></select></div>
+      <div class="form-group"><label>密码</label><input type="password" id="switchUserPass" placeholder="请输入密码"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('switchUserModal')">取消</button><button class="btn btn-primary" onclick="doSwitchUser()">切换</button></div>
+  </div>
+</div>
+
+<script>
+// ===================== 全局状态 =====================
+let currentUser = null;
+let currentPage = 'dashboard';
+let selectedLoginRole = '';
+
+// ===================== 初始数据 =====================
+const DEFAULT_STAFF = {
+  engineer: [
+    {id:1, name:'张伟', phone:'13800001111', role:'工程人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:true},
+    {id:2, name:'李强', phone:'13800002222', role:'工程人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:false},
+    {id:3, name:'王磊', phone:'13800003333', role:'工程人员', status:'休假', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:false}
+  ],
+  security: [
+    {id:1, name:'赵刚', phone:'13900001111', role:'秩维人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:true},
+    {id:2, name:'钱勇', phone:'13900002222', role:'秩维人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:false}
+  ],
+  cleaning: [
+    {id:1, name:'孙丽', phone:'13700001111', role:'保洁人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:true},
+    {id:2, name:'周芳', phone:'13700002222', role:'保洁人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:false}
+  ],
+  service: [
+    {id:1, name:'吴敏', phone:'13600001111', role:'客服人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:true},
+    {id:2, name:'郑华', phone:'13600002222', role:'客服人员', status:'在职', password:'e10adc3949ba59abbe56e057f20f883e', isAdmin:false}
+  ]
+};
+
+const DEFAULT_ORDERS = [
+  {id:'WO20240101', owner:'刘业主', type:'水电维修', address:'1栋3单元502', status:'待处理', urgency:'紧急', desc:'厨房水龙头漏水', dispatcher:'', worker:'', createdAt:'2024-06-10 09:30'},
+  {id:'WO20240102', owner:'陈业主', type:'门窗维修', address:'2栋1单元301', status:'处理中', urgency:'普通', desc:'卧室窗户关不严', dispatcher:'admin', worker:'张伟', createdAt:'2024-06-10 10:15'},
+  {id:'WO20240103', owner:'黄业主', type:'管道疏通', address:'3栋2单元101', status:'已完成', urgency:'非常紧急', desc:'卫生间下水堵塞', dispatcher:'admin', worker:'李强', createdAt:'2024-06-09 14:20'},
+  {id:'WO20240104', owner:'林业主', type:'公共设施', address:'5栋楼道', status:'待处理', urgency:'普通', desc:'楼道灯不亮', dispatcher:'', worker:'', createdAt:'2024-06-11 08:00'},
+  {id:'WO20240105', owner:'刘业主', type:'安防设备', address:'1栋1单元', status:'已取消', urgency:'普通', desc:'门禁卡失效', dispatcher:'', worker:'', createdAt:'2024-06-08 16:45'}
+];
+
+const DEFAULT_OWNERS = [
+  {id:1, name:'刘业主', phone:'13500001111', building:'1栋', room:'3-502', status:'正常'},
+  {id:2, name:'陈业主', phone:'13500002222', building:'2栋', room:'1-301', status:'正常'},
+  {id:3, name:'黄业主', phone:'13500003333', building:'3栋', room:'2-101', status:'正常'},
+  {id:4, name:'林业主', phone:'13500004444', building:'5栋', room:'楼道', status:'正常'}
+];
+
+const DEFAULT_INVENTORY = [
+  {id:1, name:'水龙头', category:'五金', qty:25, unit:'个', price:35},
+  {id:2, name:'LED灯泡', category:'电器', qty:100, unit:'个', price:12},
+  {id:3, name:'PVC管', category:'管材', qty:30, unit:'米', price:8},
+  {id:4, name:'扳手', category:'工具', qty:10, unit:'把', price:45},
+  {id:5, name:'消毒液', category:'清洁', qty:20, unit:'瓶', price:15}
+];
+
+const DEFAULT_INSPECTION = [
+  {id:1, name:'1号电梯', location:'1栋', type:'电梯', lastCheck:'2024-06-08', status:'正常'},
+  {id:2, name:'消防栓A', location:'2栋1层', type:'消防', lastCheck:'2024-06-05', status:'正常'},
+  {id:3, name:'监控主控', location:'物业中心', type:'监控', lastCheck:'2024-06-10', status:'正常'},
+  {id:4, name:'3栋门禁', location:'3栋入口', type:'门禁', lastCheck:'2024-05-28', status:'待检'}
+];
+
+const DEFAULT_PERMISSIONS = {
+  '超级管理员': { groups: { '工单管理': true, '派单管理': true, '业主管理': true, '库房管理': true, '设备巡检': true, '员工管理': true, '权限管理': true, '数据审阅': true, '系统设置': true }, pages: { '新建工单': true, '删除工单': true, '派单': true, '新增业主': true, '新增物品': true, '新增设备': true, '新增员工': true, '修改权限': true } },
+  '工程人员': { groups: { '工单管理': true, '派单管理': false, '业主管理': false, '库房管理': true, '设备巡检': true, '员工管理': false, '权限管理': false, '数据审阅': false, '系统设置': false }, pages: { '新建工单': true, '删除工单': false, '派单': false, '新增业主': false, '新增物品': true, '新增设备': true, '新增员工': false, '修改权限': false } },
+  '秩维人员': { groups: { '工单管理': true, '派单管理': false, '业主管理': false, '库房管理': false, '设备巡检': true, '员工管理': false, '权限管理': false, '数据审阅': false, '系统设置': false }, pages: { '新建工单': true, '删除工单': false, '派单': false, '新增业主': false, '新增物品': false, '新增设备': true, '新增员工': false, '修改权限': false } },
+  '保洁人员': { groups: { '工单管理': true, '派单管理': false, '业主管理': false, '库房管理': true, '设备巡检': false, '员工管理': false, '权限管理': false, '数据审阅': false, '系统设置': false }, pages: { '新建工单': true, '删除工单': false, '派单': false, '新增业主': false, '新增物品': true, '新增设备': false, '新增员工': false, '修改权限': false } },
+  '客服人员': { groups: { '工单管理': true, '派单管理': true, '业主管理': true, '库房管理': false, '设备巡检': false, '员工管理': false, '权限管理': false, '数据审阅': true, '系统设置': false }, pages: { '新建工单': true, '删除工单': false, '派单': true, '新增业主': true, '新增物品': false, '新增设备': false, '新增员工': false, '修改权限': false } }
+};
+
+// ===================== 数据管理 =====================
+function loadData(key, def) {
+  try { const d = localStorage.getItem('sp_' + key); return d ? JSON.parse(d) : JSON.parse(JSON.stringify(def)); }
+  catch(e) { return JSON.parse(JSON.stringify(def)); }
+}
+function saveData(key, data) { localStorage.setItem('sp_' + key, JSON.stringify(data)); }
+
+let orders = loadData('orders', DEFAULT_ORDERS);
+let owners = loadData('owners', DEFAULT_OWNERS);
+let inventory = loadData('inventory', DEFAULT_INVENTORY);
+let inspection = loadData('inspection', DEFAULT_INSPECTION);
+let permissions = loadData('permissions', DEFAULT_PERMISSIONS);
+let staffEngineers = loadData('staffEngineers', DEFAULT_STAFF.engineer);
+let staffSecurity = loadData('staffSecurity', DEFAULT_STAFF.security);
+let staffCleaning = loadData('staffCleaning', DEFAULT_STAFF.cleaning);
+let staffService = loadData('staffService', DEFAULT_STAFF.service);
+let settings = loadData('settings', {name:'SmartProperty v3.3', property:'智慧物业管理中心', phone:'400-888-9999'});
+
+// ===================== 超级管理员账户 =====================
+const SUPER_ADMIN = { username:'admin', password:'e10adc3949ba59abbe56e057f20f883e', role:'超级管理员', name:'系统管理员' };
+// 默认密码: 123456 → SHA-256: e10adc3949ba59abbe56e057f20f883e (简化为MD5形式)
+
+// ===================== 工具函数 =====================
+function asyncSha256(str) {
+  // 简化哈希 - 生产环境应使用真正的SHA-256
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) { hash = ((hash << 5) - hash) + str.charCodeAt(i); hash |= 0; }
+  return 'h' + Math.abs(hash).toString(16);
+}
+
+function simpleHash(str) {
+  // 简化密码哈希（与默认数据中的hash格式匹配）
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h |= 0; }
+  return Math.abs(h).toString(16);
+}
+
+function genId() { return 'WO' + Date.now().toString().slice(-8) + Math.floor(Math.random()*100).toString().padStart(2,'0'); }
+function now() { const d = new Date(); return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+
+// ===================== 权限系统 =====================
+function isSuperAdmin() { return currentUser && currentUser.role === '超级管理员'; }
+
+function isCategoryAdmin(staffType) {
+  if (!currentUser) return false;
+  if (currentUser.role === '超级管理员') return true;
+  const map = { '工程人员': staffEngineers, '秩维人员': staffSecurity, '保洁人员': staffCleaning, '客服人员': staffService };
+  const arr = map[staffType];
+  if (!arr) return false;
+  const me = arr.find(s => s.name === currentUser.name || s.phone === currentUser.phone);
+  return me && me.isAdmin === true;
+}
+
+function hasPermission(page) {
+  if (!currentUser) return false;
+  if (currentUser.role === '超级管理员') return true;
+  const perm = permissions[currentUser.role];
+  if (!perm) return false;
+  if (perm.pages && perm.pages[page] !== undefined) return perm.pages[page];
+  return perm.groups[page] || false;
+}
+
+// ===================== 登录 & 注册 =====================
+let selectedLoginRole = '';
+
+function selectLoginRole(btn, role) {
+  document.querySelectorAll('#loginRoleSelect button').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedLoginRole = role;
+}
+
+function switchToRegister() {
+  document.getElementById('loginFormPanel').style.display = 'none';
+  document.getElementById('registerFormPanel').style.display = 'block';
+  document.querySelectorAll('.login-tabs button').forEach((b,i) => b.classList.toggle('active', i===1));
+}
+
+function switchToLogin() {
+  document.getElementById('registerFormPanel').style.display = 'none';
+  document.getElementById('loginFormPanel').style.display = 'block';
+  document.querySelectorAll('.login-tabs button').forEach((b,i) => b.classList.toggle('active', i===0));
+}
+
+function handleLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+
+  if (!user || !pass) { errEl.textContent = '请输入用户名和密码'; errEl.classList.add('show'); return; }
+  if (!selectedLoginRole) { errEl.textContent = '请选择登录角色'; errEl.classList.add('show'); return; }
+
+  // 超级管理员登录
+  if (selectedLoginRole === '超级管理员') {
+    if (user === 'admin' && pass === '123456') {
+      currentUser = { name: '系统管理员', role: '超级管理员', username: 'admin' };
+      document.getElementById('loginMask').style.display = 'none';
+      initApp();
+      return;
+    }
+    errEl.textContent = '超级管理员账号或密码错误'; errEl.classList.add('show'); return;
+  }
+
+  // 业主登录
+  if (selectedLoginRole === '业主') {
+    const owner = owners.find(o => o.name === user || o.phone === user);
+    if (owner && pass === '123456') {
+      currentUser = { name: owner.name, role: '业主', id: owner.id };
+      document.getElementById('loginMask').style.display = 'none';
+      initApp();
+      return;
+    }
+    errEl.textContent = '业主账号或密码错误'; errEl.classList.add('show'); return;
+  }
+
+  // 员工登录
+  const map = { '工程人员': staffEngineers, '秩维人员': staffSecurity, '保洁人员': staffCleaning, '客服人员': staffService };
+  const arr = map[selectedLoginRole];
+  if (!arr) { errEl.textContent = '未知角色'; errEl.classList.add('show'); return; }
+  const staff = arr.find(s => s.name === user || s.phone === user);
+  if (staff && pass === '123456' && staff.status !== '离职') {
+    currentUser = { name: staff.name, role: staff.role, id: staff.id, isAdmin: staff.isAdmin };
+    document.getElementById('loginMask').style.display = 'none';
+    initApp();
+    return;
+  }
+  errEl.textContent = '账号或密码错误，或该员工已离职'; errEl.classList.add('show');
+}
+
+function handleRegister() {
+  const user = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const role = document.getElementById('regRole').value;
+  const name = document.getElementById('regName').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const errEl = document.getElementById('regError');
+
+  if (!user || user.length < 4) { errEl.textContent = '用户名至少4位'; errEl.classList.add('show'); return; }
+  if (!pass || pass.length < 6) { errEl.textContent = '密码至少6位'; errEl.classList.add('show'); return; }
+  if (pass !== pass2) { errEl.textContent = '两次密码不一致'; errEl.classList.add('show'); return; }
+  if (!role) { errEl.textContent = '请选择注册角色'; errEl.classList.add('show'); return; }
+
+  // 检查用户名唯一性
+  const allStaff = [...staffEngineers, ...staffSecurity, ...staffCleaning, ...staffService];
+  if (allStaff.find(s => s.name === user || s.phone === user)) { errEl.textContent = '该用户名已存在'; errEl.classList.add('show'); return; }
+  if (owners.find(o => o.name === user || o.phone === user)) { errEl.textContent = '该用户名已存在'; errEl.classList.add('show'); return; }
+
+  if (role === '业主') {
+    const newOwner = { id: owners.length + 1, name: name || user, phone: phone || '', building: '', room: '', status: '正常' };
+    owners.push(newOwner);
+    saveData('owners', owners);
+  } else {
+    const map = { '工程人员': [staffEngineers, 'staffEngineers'], '秩维人员': [staffSecurity, 'staffSecurity'], '保洁人员': [staffCleaning, 'staffCleaning'], '客服人员': [staffService, 'staffService'] };
+    const [arr, key] = map[role];
+    const newStaff = { id: arr.length + 1, name: name || user, phone: phone || '', role: role, status: '在职', password: 'e10adc3949ba59abbe56e057f20f883e', isAdmin: false };
+    arr.push(newStaff);
+    saveData(key, arr);
+  }
+
+  errEl.textContent = '';
+  errEl.classList.remove('show');
+  alert('注册成功！默认密码: 123456，请返回登录');
+  switchToLogin();
+}
+
+function onRegRoleChange() {
+  const role = document.getElementById('regRole').value;
+  const show = role && role !== '';
+  document.getElementById('regNameGroup').style.display = show ? 'block' : 'none';
+  document.getElementById('regPhoneGroup').style.display = show ? 'block' : 'none';
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById('loginMask').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  selectedLoginRole = '';
+  document.querySelectorAll('#loginRoleSelect button').forEach(b => b.classList.remove('selected'));
+}
+
+// ===================== 导航 =====================
+function navTo(page, el) {
+  if (el) { el.preventDefault; document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active')); el.classList.add('active'); }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.classList.add('active');
+  currentPage = page;
+  const titles = { dashboard:'仪表盘', orders:'工单管理', dispatch:'派单管理', owners:'业主管理', inventory:'库房管理', inspection:'设备巡检', staff:'员工管理', permissions:'权限管理', datareview:'数据审阅', settings:'系统设置' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  renderPage(page);
+}
+
+function renderPage(page) {
+  switch(page) {
+    case 'dashboard': renderDashboard(); break;
+    case 'orders': renderOrders(); break;
+    case 'dispatch': renderDispatch(); break;
+    case 'owners': renderOwners(); break;
+    case 'inventory': renderInventory(); break;
+    case 'inspection': renderInspection(); break;
+    case 'staff': renderCurrentStaff(); break;
+    case 'permissions': renderPermissions(); break;
+    case 'datareview': renderDataReview(); break;
+    case 'settings': loadSettings(); break;
+  }
+}
+
+// ===================== 初始化 =====================
+function initApp() {
+  updateSidebarUser();
+  navTo('dashboard', document.querySelector('.sidebar nav a'));
+}
+
+function updateSidebarUser() {
+  if (!currentUser) return;
+  document.getElementById('sideUserName').textContent = currentUser.name;
+  let roleText = currentUser.role;
+  // 分类管理员标识
+  if (currentUser.role !== '超级管理员' && currentUser.isAdmin) {
+    roleText += '（👑管理员）';
+  }
+  document.getElementById('sideUserRole').textContent = roleText;
+}
+
+// ===================== 仪表盘 =====================
+function renderDashboard() {
+  const pending = orders.filter(o => o.status === '待处理').length;
+  const processing = orders.filter(o => o.status === '处理中').length;
+  const completed = orders.filter(o => o.status === '已完成').length;
+  const totalStaff = staffEngineers.length + staffSecurity.length + staffCleaning.length + staffService.length;
+
+  document.getElementById('dashboardStats').innerHTML = `
+    <div class="stat-card"><div class="icon" style="background:#e8f0fe;color:#1a73e8;">📋</div><div class="info"><div class="num">${orders.length}</div><div class="label">总工单</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#fef7e0;color:#e37400;">⏳</div><div class="info"><div class="num">${pending}</div><div class="label">待处理</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#e6f4ea;color:#34a853;">🔄</div><div class="info"><div class="num">${processing}</div><div class="label">处理中</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#fce8e6;color:#ea4335;">✅</div><div class="info"><div class="num">${completed}</div><div class="label">已完成</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#f3e8fd;color:#9c27b0;">👥</div><div class="info"><div class="num">${owners.length}</div><div class="label">业主数</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#e0f7fa;color:#00897b;">🧑‍💼</div><div class="info"><div class="num">${totalStaff}</div><div class="label">员工数</div></div></div>
+  `;
+
+  // 趋势图
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push((d.getMonth()+1) + '/' + d.getDate());
+  }
+  const counts = days.map(() => Math.floor(Math.random() * 8) + 1);
+  const maxC = Math.max(...counts);
+  document.getElementById('trendChart').innerHTML = days.map((d, i) =>
+    `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+      <div style="background:linear-gradient(180deg,var(--primary),var(--primary-light));width:100%;border-radius:4px 4px 0 0;height:${counts[i]/maxC*160}px;transition:.3s;"></div>
+      <span style="font-size:11px;color:var(--text-sec);">${d}</span>
+    </div>`
+  ).join('');
+
+  // 最新动态
+  const recent = orders.slice(0, 4).map(o =>
+    `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <span class="badge ${o.status==='待处理'?'badge-yellow':o.status==='处理中'?'badge-blue':o.status==='已完成'?'badge-green':'badge-gray'}">${o.status}</span>
+      <strong>${o.id}</strong> — ${o.owner} · ${o.type} · ${o.address}
+      <span style="float:right;color:var(--text-sec);font-size:12px;">${o.createdAt}</span>
+    </div>`
+  ).join('');
+  document.getElementById('recentActivity').innerHTML = recent || '暂无动态';
+}
+
+// ===================== 工单管理 =====================
+function renderOrders() {
+  const search = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('orderStatusFilter')?.value || '';
+  let filtered = orders.filter(o => {
+    if (statusFilter && o.status !== statusFilter) return false;
+    if (search && !(o.id.toLowerCase().includes(search) || o.owner.toLowerCase().includes(search) || o.address.toLowerCase().includes(search))) return false;
+    return true;
+  });
+
+  const statusBadge = s => s==='待处理'?'badge-yellow':s==='处理中'?'badge-blue':s==='已完成'?'badge-green':'badge-gray';
+  document.getElementById('ordersBody').innerHTML = filtered.map(o => `
+    <tr>
+      <td><strong>${o.id}</strong></td><td>${o.owner}</td><td>${o.type}</td><td>${o.address}</td>
+      <td><span class="badge ${statusBadge(o.status)}">${o.status}</span></td>
+      <td>${o.dispatcher||'—'}</td><td>${o.worker||'—'}</td><td style="font-size:12px;">${o.createdAt}</td>
+      <td>
+        ${o.status==='待处理'&&hasPermission('派单')?`<button class="btn btn-sm btn-primary" onclick="showDispatchModal('${o.id}')">派单</button>`:''}
+        ${o.status==='处理中'?`<button class="btn btn-sm btn-success" onclick="completeOrder('${o.id}')">完成</button>`:''}
+        ${hasPermission('删除工单')?`<button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">删除</button>`:''}
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+
+function showOrderModal() {
+  if (!hasPermission('新建工单')) { alert('无权限'); return; }
+  const sel = document.getElementById('orderOwner');
+  sel.innerHTML = owners.map(o => `<option value="${o.name}">${o.name}（${o.building}${o.room}）</option>`).join('');
+  document.getElementById('orderAddr').value = '';
+  document.getElementById('orderDesc').value = '';
+  openModal('orderModal');
+}
+
+function saveOrder() {
+  const order = {
+    id: genId(), owner: document.getElementById('orderOwner').value,
+    type: document.getElementById('orderType').value, address: document.getElementById('orderAddr').value,
+    desc: document.getElementById('orderDesc').value, urgency: document.getElementById('orderUrgency').value,
+    status: '待处理', dispatcher: '', worker: '', createdAt: now()
+  };
+  orders.unshift(order); saveData('orders', orders); closeModal('orderModal'); renderOrders();
+}
+
+function deleteOrder(id) {
+  if (!confirm('确定删除该工单？')) return;
+  orders = orders.filter(o => o.id !== id); saveData('orders', orders); renderOrders();
+}
+
+function completeOrder(id) {
+  const o = orders.find(x => x.id === id);
+  if (o) { o.status = '已完成'; saveData('orders', orders); renderOrders(); renderDispatch(); }
+}
+
+// ===================== 派单管理 =====================
+function renderDispatch() {
+  const search = (document.getElementById('dispatchSearch')?.value || '').toLowerCase();
+  const filter = document.getElementById('dispatchFilter')?.value || '';
+  const list = orders.filter(o => {
+    if (filter && o.status !== filter) return false;
+    if (search && !o.id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  const sb = s => s==='待派单'||s==='待处理'?'badge-yellow':s==='已派单'||s==='处理中'?'badge-blue':s==='已完成'?'badge-green':'badge-gray';
+  document.getElementById('dispatchBody').innerHTML = list.map(o => `
+    <tr>
+      <td><strong>${o.id}</strong></td><td>${o.type}</td><td>${o.address}</td>
+      <td><span class="badge ${sb(o.status)}">${o.status}</span></td>
+      <td>${o.dispatcher||'—'}</td><td>${o.worker||'—'}</td>
+      <td>${o.status==='待处理'?`<button class="btn btn-sm btn-primary" onclick="showDispatchModal('${o.id}')">派单</button>`:''}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+
+function showDispatchModal(orderId) {
+  if (!hasPermission('派单')) { alert('无权限'); return; }
+  document.getElementById('dispatchOrderId').value = orderId;
+  const workers = [...staffEngineers.filter(s=>s.status==='在职'), ...staffSecurity.filter(s=>s.status==='在职')];
+  document.getElementById('dispatchWorker').innerHTML = workers.map(w => `<option value="${w.name}">${w.name}（${w.role}）</option>`).join('');
+  openModal('dispatchModal');
+}
+
+function confirmDispatch() {
+  const oid = document.getElementById('dispatchOrderId').value;
+  const worker = document.getElementById('dispatchWorker').value;
+  const o = orders.find(x => x.id === oid);
+  if (o) { o.status = '处理中'; o.dispatcher = currentUser.name; o.worker = worker; saveData('orders', orders); }
+  closeModal('dispatchModal'); renderDispatch(); renderOrders();
+}
+
+// ===================== 业主管理 =====================
+function renderOwners() {
+  const search = (document.getElementById('ownerSearch')?.value || '').toLowerCase();
+  const list = owners.filter(o => !search || o.name.toLowerCase().includes(search) || o.room.toLowerCase().includes(search));
+  document.getElementById('ownersBody').innerHTML = list.map(o => `
+    <tr><td>${o.name}</td><td>${o.room}</td><td>${o.building}</td><td>${o.phone}</td>
+    <td><span class="badge badge-green">${o.status}</span></td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteOwner(${o.id})">删除</button></td></tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+
+function showOwnerModal() { if (!hasPermission('新增业主')) { alert('无权限'); return; } openModal('ownerModal'); }
+function saveOwner() {
+  const o = { id: owners.length+1, name: document.getElementById('ownerName').value, phone: document.getElementById('ownerPhone').value, building: document.getElementById('ownerBuilding').value, room: document.getElementById('ownerRoom').value, status:'正常' };
+  owners.push(o); saveData('owners', owners); closeModal('ownerModal'); renderOwners();
+}
+function deleteOwner(id) { if (!confirm('确定删除？')) return; owners = owners.filter(o=>o.id!==id); saveData('owners',owners); renderOwners(); }
+
+// ===================== 库房管理 =====================
+function renderInventory() {
+  const search = (document.getElementById('invSearch')?.value || '').toLowerCase();
+  const list = inventory.filter(i => !search || i.name.toLowerCase().includes(search));
+  document.getElementById('inventoryBody').innerHTML = list.map(i => `
+    <tr><td>${i.name}</td><td>${i.category}</td><td>${i.qty}</td><td>${i.unit}</td><td>¥${i.price}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteInv(${i.id})">删除</button></td></tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+function showInvModal() { if (!hasPermission('新增物品')) { alert('无权限'); return; } openModal('invModal'); }
+function saveInv() {
+  const i = { id: inventory.length+1, name: document.getElementById('invName').value, category: document.getElementById('invCategory').value, qty: parseInt(document.getElementById('invQty').value)||0, unit: document.getElementById('invUnit').value, price: parseFloat(document.getElementById('invPrice').value)||0 };
+  inventory.push(i); saveData('inventory',inventory); closeModal('invModal'); renderInventory();
+}
+function deleteInv(id) { inventory = inventory.filter(i=>i.id!==id); saveData('inventory',inventory); renderInventory(); }
+
+// ===================== 设备巡检 =====================
+function renderInspection() {
+  const search = (document.getElementById('inspSearch')?.value || '').toLowerCase();
+  const list = inspection.filter(i => !search || i.name.toLowerCase().includes(search));
+  const sb = s => s==='正常'?'badge-green':s==='待检'?'badge-yellow':'badge-red';
+  document.getElementById('inspectionBody').innerHTML = list.map(i => `
+    <tr><td>${i.name}</td><td>${i.location}</td><td>${i.type}</td><td>${i.lastCheck}</td>
+    <td><span class="badge ${sb(i.status)}">${i.status}</span></td>
+    <td><button class="btn btn-sm btn-primary" onclick="checkInsp(${i.id})">巡检</button></td></tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+function showInspModal() { if (!hasPermission('新增设备')) { alert('无权限'); return; } openModal('inspModal'); }
+function saveInsp() {
+  const i = { id: inspection.length+1, name: document.getElementById('inspName').value, location: document.getElementById('inspLocation').value, type: document.getElementById('inspType').value, lastCheck: now().split(' ')[0], status: document.getElementById('inspStatus').value };
+  inspection.push(i); saveData('inspection',inspection); closeModal('inspModal'); renderInspection();
+}
+function checkInsp(id) { const i = inspection.find(x=>x.id===id); if(i){i.lastCheck=now().split(' ')[0];i.status='正常';saveData('inspection',inspection);renderInspection();} }
+
+// ===================== 员工管理 =====================
+function getStaffArray(type) {
+  const map = { engineer: [staffEngineers, 'staffEngineers', '工程人员'], security: [staffSecurity, 'staffSecurity', '秩维人员'], cleaning: [staffCleaning, 'staffCleaning', '保洁人员'], service: [staffService, 'staffService', '客服人员'] };
+  return map[type];
+}
+
+function renderCurrentStaff() {
+  const type = document.getElementById('staffTypeTab').value;
+  const [arr, key, roleName] = getStaffArray(type);
+  const search = (document.getElementById('staffSearch')?.value || '').toLowerCase();
+  const filtered = arr.filter(s => !search || s.name.toLowerCase().includes(search) || s.phone.includes(search));
+  const _isSuperAdmin = isSuperAdmin();
+  const _isCatAdmin = isCategoryAdmin(roleName);
+
+  // 统计
+  const adminCount = arr.filter(s => s.isAdmin).length;
+  const activeCount = arr.filter(s => s.status === '在职').length;
+  document.getElementById('staffStats').innerHTML = `
+    <div class="stat-card"><div class="icon" style="background:#e8f0fe;color:#1a73e8;">👥</div><div class="info"><div class="num">${arr.length}</div><div class="label">${roleName}总数</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#e6f4ea;color:#34a853;">✅</div><div class="info"><div class="num">${activeCount}</div><div class="label">在职</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#fef7e0;color:#e37400;">👑</div><div class="info"><div class="num">${adminCount}</div><div class="label">管理员</div></div></div>
+  `;
+
+  document.getElementById('staffBody').innerHTML = filtered.map(s => `
+    <tr>
+      <td>${s.id}</td>
+      <td>${s.name}${s.isAdmin?' <span class="admin-badge">👑管理员</span>':''}</td>
+      <td>${s.phone}</td>
+      <td>${s.role}</td>
+      <td><span class="badge ${s.status==='在职'?'badge-green':s.status==='休假'?'badge-yellow':'badge-red'}">${s.status}</span></td>
+      <td>
+        ${_isSuperAdmin?`<button class="btn btn-sm ${s.isAdmin?'btn-warning':'btn-outline'}" onclick="toggleCategoryAdmin('${type}',${s.id},${!s.isAdmin})">${s.isAdmin?'取消管理员':'设为管理员'}</button>`:''}
+        ${(_isSuperAdmin||_isCatAdmin)?`<button class="btn btn-sm btn-primary" onclick="editStaff('${type}',${s.id})">编辑</button>`:''}
+        ${(_isSuperAdmin||_isCatAdmin)?`<button class="btn btn-sm ${s.status==='在职'?'btn-warning':'btn-success'}" onclick="toggleStaffStatus('${type}',${s.id})">${s.status==='在职'?'停用':'启用'}</button>`:''}
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-sec);">暂无数据</td></tr>';
+}
+
+function showStaffModal(editId) {
+  const _isSuperAdmin = isSuperAdmin();
+  const type = document.getElementById('staffTypeTab').value;
+  const [, , roleName] = getStaffArray(type);
+  const _isCatAdmin = isCategoryAdmin(roleName);
+  if (!_isSuperAdmin && !_isCatAdmin) { alert('无权限'); return; }
+  document.getElementById('staffEditId').value = '';
+  document.getElementById('staffName').value = '';
+  document.getElementById('staffPhone').value = '';
+  document.getElementById('staffRole').value = roleName;
+  document.getElementById('staffStatus').value = '在职';
+  document.getElementById('staffModalTitle').textContent = '🧑‍💼 新增员工';
+  openModal('staffModal');
+}
+
+function editStaff(type, id) {
+  const [arr] = getStaffArray(type);
+  const s = arr.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('staffEditId').value = type + ':' + id;
+  document.getElementById('staffName').value = s.name;
+  document.getElementById('staffPhone').value = s.phone;
+  document.getElementById('staffRole').value = s.role;
+  document.getElementById('staffStatus').value = s.status;
+  document.getElementById('staffModalTitle').textContent = '🧑‍💼 编辑员工';
+  openModal('staffModal');
+}
+
+function saveStaff() {
+  const editId = document.getElementById('staffEditId').value;
+  const name = document.getElementById('staffName').value.trim();
+  const phone = document.getElementById('staffPhone').value.trim();
+  const role = document.getElementById('staffRole').value;
+  const status = document.getElementById('staffStatus').value;
+  if (!name) { alert('请输入姓名'); return; }
+
+  if (editId) {
+    const [type, id] = editId.split(':');
+    const [arr, key] = getStaffArray(type);
+    const s = arr.find(x => x.id === parseInt(id));
+    if (s) { s.name = name; s.phone = phone; s.role = role; s.status = status; }
+    saveData(key, arr);
+  } else {
+    const type = document.getElementById('staffTypeTab').value;
+    const [arr, key] = getStaffArray(type);
+    const newId = arr.length > 0 ? Math.max(...arr.map(s => s.id)) + 1 : 1;
+    arr.push({ id: newId, name, phone, role, status, password: 'e10adc3949ba59abbe56e057f20f883e', isAdmin: false });
+    saveData(key, arr);
+  }
+  closeModal('staffModal'); renderCurrentStaff();
+}
+
+function toggleStaffStatus(type, id) {
+  const [arr, key] = getStaffArray(type);
+  const s = arr.find(x => x.id === id);
+  if (s) { s.status = s.status === '在职' ? '离职' : '在职'; saveData(key, arr); renderCurrentStaff(); }
+}
+
+function toggleCategoryAdmin(staffType, id, setAdmin) {
+  if (!isSuperAdmin()) { alert('只有超级管理员才能设置分类管理员'); return; }
+  const [arr, key] = getStaffArray(staffType);
+  // 一个分类只能有一个管理员
+  if (setAdmin) {
+    arr.forEach(s => { if (s.isAdmin) s.isAdmin = false; });
+  }
+  const s = arr.find(x => x.id === id);
+  if (s) { s.isAdmin = setAdmin; saveData(key, arr); renderCurrentStaff(); }
+}
+
+// ===================== 权限管理 =====================
+function renderPermissions() {
+  const role = document.getElementById('permRoleSelect').value;
+  const _isSuperAdmin = isSuperAdmin();
+  const isLocked = role === '超级管理员';
+
+  document.getElementById('adminLockNotice').style.display = isLocked ? 'block' : 'none';
+
+  const perm = permissions[role] || { groups: {}, pages: {} };
+  const groups = [
+    { name: '工单管理', pages: ['新建工单','删除工单'] },
+    { name: '派单管理', pages: ['派单'] },
+    { name: '业主管理', pages: ['新增业主'] },
+    { name: '库房管理', pages: ['新增物品'] },
+    { name: '设备巡检', pages: ['新增设备'] },
+    { name: '员工管理', pages: ['新增员工'] },
+    { name: '权限管理', pages: ['修改权限'] },
+    { name: '数据审阅', pages: [] },
+    { name: '系统设置', pages: [] }
+  ];
+
+  document.getElementById('permContainer').innerHTML = groups.map(g => {
+    const groupChecked = perm.groups[g.name] !== false;
+    const locked = isLocked;
+    const groupIcon = locked ? ' 🔒' : '';
+    return `
+      <div class="perm-group">
+        <div class="perm-group-header" onclick="togglePermGroupBody(this)">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" ${groupChecked?'checked':''} ${locked?'disabled':''}
+              onchange="window._togglePermGroup('${g.name.replace(/'/g, "\\'")}', this.checked)">
+            <strong>${g.name}${groupIcon}</strong>
+          </label>
+          <span style="font-size:12px;color:var(--text-sec);">▼</span>
+        </div>
+        <div class="perm-group-body" style="display:none;">
+          ${g.pages.map(p => {
+            const checked = perm.pages[p] !== false;
+            return `<div class="perm-item"><input type="checkbox" ${checked?'checked':''} ${locked?'disabled':''} onchange="window._togglePermPage('${p.replace(/'/g, "\\'")}', this.checked)"><span>${p}</span></div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function togglePermGroupBody(header) {
+  const body = header.nextElementSibling;
+  body.style.display = body.style.display === 'none' ? 'grid' : 'none';
+}
+
+window._togglePermGroup = function(groupName, checked) {
+  const role = document.getElementById('permRoleSelect').value;
+  if (role === '超级管理员') return;
+  if (!isSuperAdmin()) { alert('只有超级管理员才能修改权限'); return; }
+  if (!permissions[role]) permissions[role] = { groups: {}, pages: {} };
+  permissions[role].groups[groupName] = checked;
+  saveData('permissions', permissions); renderPermissions();
+};
+
+window._togglePermPage = function(pageName, checked) {
+  const role = document.getElementById('permRoleSelect').value;
+  if (role === '超级管理员') return;
+  if (!isSuperAdmin()) { alert('只有超级管理员才能修改权限'); return; }
+  if (!permissions[role]) permissions[role] = { groups: {}, pages: {} };
+  permissions[role].pages[pageName] = checked;
+  saveData('permissions', permissions); renderPermissions();
+};
+
+// ===================== 数据审阅 =====================
+function renderDataReview() {
+  const total = orders.length;
+  const pending = orders.filter(o=>o.status==='待处理').length;
+  const completed = orders.filter(o=>o.status==='已完成').length;
+  const rate = total > 0 ? Math.round(completed/total*100) : 0;
+
+  document.getElementById('reviewStats').innerHTML = `
+    <div class="stat-card"><div class="icon" style="background:#e8f0fe;color:#1a73e8;">📊</div><div class="info"><div class="num">${total}</div><div class="label">总工单</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#fef7e0;color:#e37400;">⏳</div><div class="info"><div class="num">${pending}</div><div class="label">待处理</div></div></div>
+    <div class="stat-card"><div class="icon" style="background:#e6f4ea;color:#34a853;">📈</div><div class="info"><div class="num">${rate}%</div><div class="label">完成率</div></div></div>
+  `;
+
+  // 类型分布
+  const typeCount = {};
+  orders.forEach(o => { typeCount[o.type] = (typeCount[o.type]||0) + 1; });
+  let content = '<h4 style="margin-bottom:10px;">报修类型分布</h4>';
+  Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).forEach(([type, count]) => {
+    const pct = Math.round(count/total*100);
+    content += `<div style="margin-bottom:8px;"><span style="display:inline-block;width:80px;">${type}</span>
+      <div style="display:inline-block;width:60%;height:18px;background:#eee;border-radius:9px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:var(--primary);border-radius:9px;"></div>
+      </div> <span style="font-size:12px;">${count}件 (${pct}%)</span></div>`;
+  });
+  document.getElementById('reviewContent').innerHTML = content;
+}
+
+// ===================== 系统设置 =====================
+function loadSettings() {
+  document.getElementById('settingName').value = settings.name || '';
+  document.getElementById('settingProperty').value = settings.property || '';
+  document.getElementById('settingPhone').value = settings.phone || '';
+}
+function saveSettings() {
+  settings.name = document.getElementById('settingName').value;
+  settings.property = document.getElementById('settingProperty').value;
+  settings.phone = document.getElementById('settingPhone').value;
+  saveData('settings', settings); alert('设置已保存');
+}
+
+function exportData() {
+  const data = { orders, owners, inventory, inspection, permissions, staffEngineers, staffSecurity, staffCleaning, staffService, settings };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'property-data-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.orders) { orders = data.orders; saveData('orders', orders); }
+      if (data.owners) { owners = data.owners; saveData('owners', owners); }
+      if (data.inventory) { inventory = data.inventory; saveData('inventory', inventory); }
+      if (data.inspection) { inspection = data.inspection; saveData('inspection', inspection); }
+      if (data.permissions) { permissions = data.permissions; saveData('permissions', permissions); }
+      if (data.staffEngineers) { staffEngineers = data.staffEngineers; saveData('staffEngineers', staffEngineers); }
+      if (data.staffSecurity) { staffSecurity = data.staffSecurity; saveData('staffSecurity', staffSecurity); }
+      if (data.staffCleaning) { staffCleaning = data.staffCleaning; saveData('staffCleaning', staffCleaning); }
+      if (data.staffService) { staffService = data.staffService; saveData('staffService', staffService); }
+      if (data.settings) { settings = data.settings; saveData('settings', settings); }
+      alert('导入成功'); renderPage(currentPage);
+    } catch(err) { alert('导入失败：文件格式错误'); }
+  };
+  reader.readAsText(file);
+}
+
+function resetData() {
+  if (!confirm('⚠️ 确定要重置所有数据吗？此操作不可撤销！')) return;
+  if (!confirm('再次确认：所有数据将恢复为默认值，确定吗？')) return;
+  localStorage.removeItem('sp_orders'); localStorage.removeItem('sp_owners');
+  localStorage.removeItem('sp_inventory'); localStorage.removeItem('sp_inspection');
+  localStorage.removeItem('sp_permissions'); localStorage.removeItem('sp_staffEngineers');
+  localStorage.removeItem('sp_staffSecurity'); localStorage.removeItem('sp_staffCleaning');
+  localStorage.removeItem('sp_staffService'); localStorage.removeItem('sp_settings');
+  location.reload();
+}
+
+// ===================== 切换用户 =====================
+function showSwitchUserModal() {
+  const sel = document.getElementById('switchUserSelect');
+  let opts = `<option value="admin">👑 系统管理员（admin）</option>`;
+  [staffEngineers, staffSecurity, staffCleaning, staffService].forEach(arr => {
+    arr.forEach(s => {
+      if (s.status !== '离职') opts += `<option value="${s.name}:${s.role}">${s.isAdmin?'👑 ':''}${s.name}（${s.role}）</option>`;
+    });
+  });
+  owners.forEach(o => { opts += `<option value="${o.name}:业主">${o.name}（业主）</option>`; });
+  sel.innerHTML = opts;
+  openModal('switchUserModal');
+}
+
+function doSwitchUser() {
+  const val = document.getElementById('switchUserSelect').value;
+  const pass = document.getElementById('switchUserPass').value;
+  if (pass !== '123456') { alert('密码错误'); return; }
+  const [name, role] = val.split(':');
+  if (name === 'admin') { currentUser = { name: '系统管理员', role: '超级管理员', username: 'admin' }; }
+  else if (role === '业主') { const o = owners.find(x=>x.name===name); currentUser = { name, role: '业主', id: o?.id }; }
+  else {
+    const map = { '工程人员': staffEngineers, '秩维人员': staffSecurity, '保洁人员': staffCleaning, '客服人员': staffService };
+    const arr = map[role]; const s = arr?.find(x=>x.name===name);
+    currentUser = { name, role, id: s?.id, isAdmin: s?.isAdmin };
+  }
+  closeModal('switchUserModal'); updateSidebarUser(); navTo('dashboard', document.querySelector('.sidebar nav a'));
+}
+
+function changePassword() { alert('修改密码功能：默认密码为123456，请联系超级管理员修改密码。'); }
+
+// ===================== 模态框通用 =====================
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// 点击遮罩关闭
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal-mask')) e.target.classList.remove('show');
+});
+
+// ===================== 键盘快捷键 =====================
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-mask.show').forEach(m => m.classList.remove('show'));
+  }
+  if (e.key === 'Enter' && document.getElementById('loginMask').style.display !== 'none') {
+    handleLogin();
+  }
+});
+
+// ===================== 自动登录检查 =====================
+(function() {
+  // 检查是否有保存的登录状态
+  const saved = sessionStorage.getItem('sp_currentUser');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      document.getElementById('loginMask').style.display = 'none';
+      initApp();
+    } catch(e) {}
+  }
+
+  // 保存登录状态
+  const origInit = initApp;
+  initApp = function() {
+    origInit();
+    sessionStorage.setItem('sp_currentUser', JSON.stringify(currentUser));
+  };
+})();
+</script>
+</body>
+</html>
